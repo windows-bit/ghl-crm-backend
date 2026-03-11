@@ -11,11 +11,11 @@ const authMiddleware = require('../middleware/auth');
 // All GHL routes require the user to be logged in
 router.use(authMiddleware);
 
-// Helper: get the user's decrypted GHL API key from Supabase
-async function getGhlKey(userId) {
+// Helper: get the user's decrypted GHL API key and location ID from Supabase
+async function getGhlCreds(userId) {
   const { data, error } = await supabase
     .from('users')
-    .select('ghl_key_encrypted')
+    .select('ghl_key_encrypted, ghl_location_id')
     .eq('id', userId)
     .single();
 
@@ -23,16 +23,20 @@ async function getGhlKey(userId) {
     throw new Error('GHL API key not found. Please set up your GHL key first.');
   }
 
-  return decrypt(data.ghl_key_encrypted);
+  return {
+    apiKey: decrypt(data.ghl_key_encrypted),
+    locationId: data.ghl_location_id,
+  };
 }
 
-// Helper: build an axios instance pointing to GHL with the user's key
+// Helper: build an axios instance pointing to GHL v2 with the user's key
 function ghlClient(apiKey) {
   return axios.create({
-    baseURL: 'https://rest.gohighlevel.com/v1',
+    baseURL: 'https://services.leadconnectorhq.com',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+      Version: '2021-07-28',
     },
   });
 }
@@ -42,13 +46,13 @@ function ghlClient(apiKey) {
 // GET /ghl/contacts?search=John&limit=20&page=1
 router.get('/contacts', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const { search, limit = 20, page = 1 } = req.query;
 
-    const params = { limit, startAfter: (page - 1) * limit };
+    const params = { locationId, limit, startAfter: (page - 1) * limit };
     if (search) params.query = search;
 
-    const response = await ghlClient(key).get('/contacts/', { params });
+    const response = await ghlClient(apiKey).get('/contacts/', { params });
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,8 +62,8 @@ router.get('/contacts', async (req, res) => {
 // GET /ghl/contacts/:id
 router.get('/contacts/:id', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).get(`/contacts/${req.params.id}`);
+    const { apiKey } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get(`/contacts/${req.params.id}`);
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -67,11 +71,10 @@ router.get('/contacts/:id', async (req, res) => {
 });
 
 // POST /ghl/contacts — create a new contact
-// Body: { firstName, lastName, phone, email, tags }
 router.post('/contacts', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).post('/contacts/', req.body);
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).post('/contacts/', { ...req.body, locationId });
     res.status(201).json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -81,8 +84,8 @@ router.post('/contacts', async (req, res) => {
 // PUT /ghl/contacts/:id — update a contact
 router.put('/contacts/:id', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).put(`/contacts/${req.params.id}`, req.body);
+    const { apiKey } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).put(`/contacts/${req.params.id}`, req.body);
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -94,8 +97,10 @@ router.put('/contacts/:id', async (req, res) => {
 // GET /ghl/pipelines — list all pipelines
 router.get('/pipelines', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).get('/pipelines/');
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get('/opportunities/pipelines', {
+      params: { locationId },
+    });
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -105,9 +110,9 @@ router.get('/pipelines', async (req, res) => {
 // GET /ghl/opportunities?pipelineId=xxx&stageId=xxx
 router.get('/opportunities', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).get('/opportunities/search', {
-      params: req.query,
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get('/opportunities/search', {
+      params: { location_id: locationId, ...req.query },
     });
     res.json(response.data);
   } catch (err) {
@@ -118,8 +123,8 @@ router.get('/opportunities', async (req, res) => {
 // POST /ghl/opportunities — create opportunity
 router.post('/opportunities', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).post('/opportunities/', req.body);
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).post('/opportunities/', { ...req.body, locationId });
     res.status(201).json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -129,8 +134,8 @@ router.post('/opportunities', async (req, res) => {
 // PUT /ghl/opportunities/:id — update opportunity stage/status
 router.put('/opportunities/:id', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).put(`/opportunities/${req.params.id}`, req.body);
+    const { apiKey } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).put(`/opportunities/${req.params.id}`, req.body);
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -142,9 +147,9 @@ router.put('/opportunities/:id', async (req, res) => {
 // GET /ghl/conversations?contactId=xxx
 router.get('/conversations', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).get('/conversations/search', {
-      params: req.query,
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get('/conversations/search', {
+      params: { locationId, ...req.query },
     });
     res.json(response.data);
   } catch (err) {
@@ -155,8 +160,8 @@ router.get('/conversations', async (req, res) => {
 // GET /ghl/conversations/:id/messages
 router.get('/conversations/:id/messages', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).get(`/conversations/${req.params.id}/messages`);
+    const { apiKey } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get(`/conversations/${req.params.id}/messages`);
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -164,11 +169,10 @@ router.get('/conversations/:id/messages', async (req, res) => {
 });
 
 // POST /ghl/conversations/:id/messages — send a message
-// Body: { type: 'SMS' | 'Email', message }
 router.post('/conversations/:id/messages', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).post(
+    const { apiKey } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).post(
       `/conversations/${req.params.id}/messages`,
       req.body
     );
@@ -183,8 +187,10 @@ router.post('/conversations/:id/messages', async (req, res) => {
 // GET /ghl/workflows — list all workflows
 router.get('/workflows', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
-    const response = await ghlClient(key).get('/workflows/');
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get('/workflows/', {
+      params: { locationId },
+    });
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -195,12 +201,12 @@ router.get('/workflows', async (req, res) => {
 // Body: { contactId }
 router.post('/workflows/:id/trigger', async (req, res) => {
   try {
-    const key = await getGhlKey(req.user.id);
+    const { apiKey } = await getGhlCreds(req.user.id);
     const { contactId } = req.body;
     if (!contactId) {
       return res.status(400).json({ error: 'contactId is required' });
     }
-    const response = await ghlClient(key).post(
+    const response = await ghlClient(apiKey).post(
       `/workflows/${req.params.id}/subscribe`,
       { contactId }
     );
