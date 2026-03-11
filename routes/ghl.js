@@ -201,7 +201,9 @@ router.get('/calendars', async (req, res) => {
     const response = await ghlClient(apiKey).get('/calendars/', {
       params: { locationId },
     });
-    res.json(response.data);
+    const data = response.data;
+    const calendars = data.calendars || data.data?.calendars || [];
+    res.json({ calendars });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -211,8 +213,7 @@ router.get('/calendars', async (req, res) => {
 router.get('/appointments', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
-    const now = new Date();
-    const startMs = now.setHours(0, 0, 0, 0);
+    const startMs = new Date().setHours(0, 0, 0, 0);
     const endMs = startMs + 30 * 24 * 60 * 60 * 1000;
     const response = await ghlClient(apiKey).get('/calendars/events', {
       params: {
@@ -221,7 +222,10 @@ router.get('/appointments', async (req, res) => {
         endTime: endMs,
       },
     });
-    res.json(response.data);
+    const data = response.data;
+    // GHL v2 may return { events: [...] } or { data: { events: [...] } } or { appointments: [...] }
+    const events = data.events || data.data?.events || data.appointments || data.data?.appointments || [];
+    res.json({ events });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
