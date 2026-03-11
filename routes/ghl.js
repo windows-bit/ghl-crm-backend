@@ -219,42 +219,47 @@ router.get('/calendars', async (req, res) => {
 });
 
 // GET /ghl/appointments
+// GHL v2 requires calendarId (not just locationId) on /calendars/events.
+// So we first fetch all calendars, then pull events for each one in parallel.
 router.get('/appointments', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
-    const startMs = new Date().setHours(0, 0, 0, 0);
-    const endMs = startMs + 30 * 24 * 60 * 60 * 1000;
-    const response = await ghlClient(apiKey).get('/calendars/events', {
-      params: {
-        locationId,
-        startTime: startMs,
-        endTime: endMs,
-      },
-    });
-    const data = response.data;
-    console.log('[appointments] raw GHL response keys:', Object.keys(data));
-    console.log('[appointments] raw GHL data:', JSON.stringify(data).slice(0, 500));
-    // GHL v2 may return { events: [...] } or { data: { events: [...] } } or { appointments: [...] }
-    const events = data.events || data.data?.events || data.appointments || data.data?.appointments || [];
-    res.json({ events, _debug: { keys: Object.keys(data), total: events.length } });
-  } catch (err) {
-    console.error('[appointments] error:', err.response?.data || err.message);
-    res.status(500).json({ error: err.message, detail: err.response?.data });
-  }
-});
+    const ghl = ghlClient(apiKey);
 
-// GET /ghl/debug/calendar — returns raw GHL response so we can see the exact structure
-router.get('/debug/calendar', async (req, res) => {
-  try {
-    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    // Step 1: get all calendars for this location
+    const calsRes = await ghl.get('/calendars/', { params: { locationId } });
+    const calsData = calsRes.data;
+    const calendars = calsData.calendars || calsData.data?.calendars || [];
+
+    if (calendars.length === 0) {
+      return res.json({ events: [] });
+    }
+
+    // Step 2: fetch events for each calendar over the next 30 days
     const startMs = new Date().setHours(0, 0, 0, 0);
     const endMs = startMs + 30 * 24 * 60 * 60 * 1000;
-    const response = await ghlClient(apiKey).get('/calendars/events', {
-      params: { locationId, startTime: startMs, endTime: endMs },
+
+    const results = await Promise.allSettled(
+      calendars.map(cal =>
+        ghl.get('/calendars/events', {
+          params: { calendarId: cal.id, startTime: startMs, endTime: endMs },
+        })
+      )
+    );
+
+    // Step 3: merge all events from all calendars
+    const events = results.flatMap(r => {
+      if (r.status !== 'fulfilled') return [];
+      const d = r.value.data;
+      return d.events || d.data?.events || d.appointments || d.data?.appointments || [];
     });
-    res.json({ raw: response.data, params: { locationId, startTime: startMs, endTime: endMs } });
+
+    // Sort by start time
+    events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+    res.json({ events });
   } catch (err) {
-    res.status(500).json({ error: err.message, detail: err.response?.data });
+    res.status(500).json({ error: err.message });
   }
 });
 
