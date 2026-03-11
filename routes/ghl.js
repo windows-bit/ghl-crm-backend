@@ -38,6 +38,7 @@ function ghlClient(apiKey) {
       'Content-Type': 'application/json',
       Version: '2021-07-28',
     },
+    timeout: 10000,
   });
 }
 
