@@ -107,14 +107,16 @@ router.get('/pipelines', async (req, res) => {
   }
 });
 
-// GET /ghl/opportunities?pipelineId=xxx&stageId=xxx
+// GET /ghl/opportunities?pipelineId=xxx
 router.get('/opportunities', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
-    const response = await ghlClient(apiKey).get('/opportunities/search', {
-      params: { location_id: locationId, ...req.query },
-    });
-    res.json(response.data);
+    const params = { location_id: locationId };
+    if (req.query.pipelineId) params.pipeline_id = req.query.pipelineId;
+    const response = await ghlClient(apiKey).get('/opportunities/search', { params });
+    const data = response.data;
+    const opportunities = data.opportunities || data.data?.opportunities || [];
+    res.json({ opportunities });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -144,14 +146,17 @@ router.put('/opportunities/:id', async (req, res) => {
 
 // ─── CONVERSATIONS ───────────────────────────────────────────────────────────
 
-// GET /ghl/conversations?contactId=xxx
+// GET /ghl/conversations
 router.get('/conversations', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const response = await ghlClient(apiKey).get('/conversations/search', {
-      params: { locationId, ...req.query },
+      params: { locationId, limit: 20, ...req.query },
     });
-    res.json(response.data);
+    // v2 returns { conversations: [...] } or { data: { conversations: [...] } }
+    const data = response.data;
+    const conversations = data.conversations || data.data?.conversations || [];
+    res.json({ conversations });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -197,15 +202,19 @@ router.get('/calendars', async (req, res) => {
   }
 });
 
-// GET /ghl/appointments?startTime=...&endTime=...&calendarId=...
+// GET /ghl/appointments
 router.get('/appointments', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const now = new Date();
-    const start = req.query.startTime || new Date(now.setHours(0,0,0,0)).toISOString();
-    const end = req.query.endTime || new Date(now.setDate(now.getDate() + 30)).toISOString();
+    const startMs = now.setHours(0, 0, 0, 0);
+    const endMs = startMs + 30 * 24 * 60 * 60 * 1000;
     const response = await ghlClient(apiKey).get('/calendars/events', {
-      params: { locationId, startTime: start, endTime: end, ...req.query },
+      params: {
+        locationId,
+        startTime: startMs,
+        endTime: endMs,
+      },
     });
     res.json(response.data);
   } catch (err) {
