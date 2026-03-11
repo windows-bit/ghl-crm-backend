@@ -231,11 +231,29 @@ router.get('/appointments', async (req, res) => {
       },
     });
     const data = response.data;
+    console.log('[appointments] raw GHL response keys:', Object.keys(data));
+    console.log('[appointments] raw GHL data:', JSON.stringify(data).slice(0, 500));
     // GHL v2 may return { events: [...] } or { data: { events: [...] } } or { appointments: [...] }
     const events = data.events || data.data?.events || data.appointments || data.data?.appointments || [];
-    res.json({ events });
+    res.json({ events, _debug: { keys: Object.keys(data), total: events.length } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[appointments] error:', err.response?.data || err.message);
+    res.status(500).json({ error: err.message, detail: err.response?.data });
+  }
+});
+
+// GET /ghl/debug/calendar — returns raw GHL response so we can see the exact structure
+router.get('/debug/calendar', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const startMs = new Date().setHours(0, 0, 0, 0);
+    const endMs = startMs + 30 * 24 * 60 * 60 * 1000;
+    const response = await ghlClient(apiKey).get('/calendars/events', {
+      params: { locationId, startTime: startMs, endTime: endMs },
+    });
+    res.json({ raw: response.data, params: { locationId, startTime: startMs, endTime: endMs } });
+  } catch (err) {
+    res.status(500).json({ error: err.message, detail: err.response?.data });
   }
 });
 
