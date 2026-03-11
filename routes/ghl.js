@@ -167,7 +167,10 @@ router.get('/conversations/:id/messages', async (req, res) => {
   try {
     const { apiKey } = await getGhlCreds(req.user.id);
     const response = await ghlClient(apiKey).get(`/conversations/${req.params.id}/messages`);
-    res.json(response.data);
+    // v2 returns { messages: { messages: [...] } }
+    const data = response.data;
+    const messages = data.messages?.messages || data.messages || data.data?.messages || [];
+    res.json({ messages });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -177,10 +180,12 @@ router.get('/conversations/:id/messages', async (req, res) => {
 router.post('/conversations/:id/messages', async (req, res) => {
   try {
     const { apiKey } = await getGhlCreds(req.user.id);
-    const response = await ghlClient(apiKey).post(
-      `/conversations/${req.params.id}/messages`,
-      req.body
-    );
+    // v2 send endpoint is POST /conversations/messages (no id in path)
+    const response = await ghlClient(apiKey).post('/conversations/messages', {
+      type: req.body.type || 'SMS',
+      conversationId: req.params.id,
+      message: req.body.message,
+    });
     res.status(201).json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
