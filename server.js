@@ -4,6 +4,7 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
 const ghlRoutes = require('./routes/ghl');
+const timeRoutes = require('./routes/time');
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.get('/', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/ghl', ghlRoutes);
+app.use('/time', timeRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

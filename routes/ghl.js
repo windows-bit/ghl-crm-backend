@@ -182,6 +182,51 @@ router.post('/conversations/:id/messages', async (req, res) => {
   }
 });
 
+// ─── CALENDAR ────────────────────────────────────────────────────────────────
+
+// GET /ghl/calendars — list all calendars
+router.get('/calendars', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get('/calendars/', {
+      params: { locationId },
+    });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /ghl/appointments?startTime=...&endTime=...&calendarId=...
+router.get('/appointments', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const now = new Date();
+    const start = req.query.startTime || new Date(now.setHours(0,0,0,0)).toISOString();
+    const end = req.query.endTime || new Date(now.setDate(now.getDate() + 30)).toISOString();
+    const response = await ghlClient(apiKey).get('/calendars/events', {
+      params: { locationId, startTime: start, endTime: end, ...req.query },
+    });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /ghl/appointments — create an appointment
+router.post('/appointments', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).post('/calendars/events/appointments', {
+      ...req.body,
+      locationId,
+    });
+    res.status(201).json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── INVOICES ─────────────────────────────────────────────────────────────────
 
 // GET /ghl/invoices — list all invoices
