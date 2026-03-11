@@ -182,6 +182,52 @@ router.post('/conversations/:id/messages', async (req, res) => {
   }
 });
 
+// ─── INVOICES ─────────────────────────────────────────────────────────────────
+
+// GET /ghl/invoices — list all invoices
+router.get('/invoices', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).get('/invoices/', {
+      params: { altId: locationId, altType: 'location', ...req.query },
+    });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /ghl/invoices — create an invoice
+// Body: { contactId, name, lineItems: [{ name, qty, unitPrice }], dueDate }
+router.post('/invoices', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).post('/invoices/', {
+      ...req.body,
+      altId: locationId,
+      altType: 'location',
+    });
+    res.status(201).json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /ghl/invoices/:id/send — send invoice to contact
+router.post('/invoices/:id/send', async (req, res) => {
+  try {
+    const { apiKey, locationId } = await getGhlCreds(req.user.id);
+    const response = await ghlClient(apiKey).post(`/invoices/${req.params.id}/send`, {
+      altId: locationId,
+      altType: 'location',
+      ...req.body,
+    });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── WORKFLOWS / AUTOMATIONS ─────────────────────────────────────────────────
 
 // GET /ghl/workflows — list all workflows
