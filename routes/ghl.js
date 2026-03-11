@@ -49,11 +49,16 @@ router.get('/contacts', async (req, res) => {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const { search, limit = 20, page = 1 } = req.query;
 
-    const params = { locationId, limit, startAfter: (page - 1) * limit };
+    // GHL v2 contacts uses `skip` for offset-based pagination (not startAfter which is a cursor)
+    const params = { locationId, limit, skip: (page - 1) * limit };
     if (search) params.query = search;
 
     const response = await ghlClient(apiKey).get('/contacts/', { params });
-    res.json(response.data);
+    const data = response.data;
+    // GHL v2 returns { contacts: [...], meta: { total, ... } }
+    const contacts = data.contacts || data.data?.contacts || [];
+    const meta = data.meta || data.data?.meta || {};
+    res.json({ contacts, meta });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -101,7 +106,10 @@ router.get('/pipelines', async (req, res) => {
     const response = await ghlClient(apiKey).get('/opportunities/pipelines', {
       params: { locationId },
     });
-    res.json(response.data);
+    const data = response.data;
+    // GHL v2 returns { pipelines: [...] } directly or nested under data
+    const pipelines = data.pipelines || data.data?.pipelines || [];
+    res.json({ pipelines });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -254,7 +262,10 @@ router.get('/invoices', async (req, res) => {
     const response = await ghlClient(apiKey).get('/invoices/', {
       params: { altId: locationId, altType: 'location', ...req.query },
     });
-    res.json(response.data);
+    const data = response.data;
+    // GHL v2 returns { invoices: [...] } directly or nested
+    const invoices = data.invoices || data.data?.invoices || [];
+    res.json({ invoices });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -300,7 +311,10 @@ router.get('/workflows', async (req, res) => {
     const response = await ghlClient(apiKey).get('/workflows/', {
       params: { locationId },
     });
-    res.json(response.data);
+    const data = response.data;
+    // GHL v2 returns { workflows: [...] } directly or nested
+    const workflows = data.workflows || data.data?.workflows || [];
+    res.json({ workflows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -308,6 +322,7 @@ router.get('/workflows', async (req, res) => {
 
 // POST /ghl/workflows/:id/trigger — fire a workflow for a contact
 // Body: { contactId }
+// GHL v2 endpoint: POST /contacts/{contactId}/workflow/{workflowId}
 router.post('/workflows/:id/trigger', async (req, res) => {
   try {
     const { apiKey } = await getGhlCreds(req.user.id);
@@ -316,8 +331,7 @@ router.post('/workflows/:id/trigger', async (req, res) => {
       return res.status(400).json({ error: 'contactId is required' });
     }
     const response = await ghlClient(apiKey).post(
-      `/workflows/${req.params.id}/subscribe`,
-      { contactId }
+      `/contacts/${contactId}/workflow/${req.params.id}`
     );
     res.json(response.data);
   } catch (err) {

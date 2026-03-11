@@ -71,19 +71,24 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /auth/ghl-key
-// Saves the user's GHL API key (encrypted) and location ID. Body: { ghlKey, locationId }
+// Saves the user's GHL API key (encrypted) and optionally the location ID.
+// Body: { ghlKey, locationId? }
 // Requires auth token in header: Authorization: Bearer <token>
 router.post('/ghl-key', authMiddleware, async (req, res) => {
   const { ghlKey, locationId } = req.body;
-  if (!ghlKey || !locationId) {
-    return res.status(400).json({ error: 'ghlKey and locationId are required' });
+  if (!ghlKey) {
+    return res.status(400).json({ error: 'ghlKey is required' });
   }
 
   const encrypted = encrypt(ghlKey);
 
+  // Build the update object — always update the key, only update locationId if provided
+  const updateData = { ghl_key_encrypted: encrypted };
+  if (locationId) updateData.ghl_location_id = locationId;
+
   const { error } = await supabase
     .from('users')
-    .update({ ghl_key_encrypted: encrypted, ghl_location_id: locationId })
+    .update(updateData)
     .eq('id', req.user.id);
 
   if (error) {
