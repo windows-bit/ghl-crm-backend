@@ -235,9 +235,10 @@ router.get('/appointments', async (req, res) => {
       return res.json({ events: [] });
     }
 
-    // Step 2: fetch events for each calendar over the next 30 days
-    const startMs = new Date().setHours(0, 0, 0, 0);
-    const endMs = startMs + 30 * 24 * 60 * 60 * 1000;
+    // Step 2: fetch events for each calendar — 7 days back to 60 days forward
+    const now = new Date();
+    const startMs = new Date(now).setHours(0, 0, 0, 0) - 7 * 24 * 60 * 60 * 1000;
+    const endMs = new Date(now).setHours(23, 59, 59, 999) + 60 * 24 * 60 * 60 * 1000;
 
     const results = await Promise.allSettled(
       calendars.map(cal =>
@@ -251,12 +252,17 @@ router.get('/appointments', async (req, res) => {
     const events = results.flatMap(r => {
       if (r.status !== 'fulfilled') return [];
       const d = r.value.data;
-      return d.events || d.data?.events || d.appointments || d.data?.appointments || [];
+      // Handle various GHL response shapes
+      const list = d.events || d.data?.events || d.appointments || d.data?.appointments
+        || (Array.isArray(d.data) ? d.data : null)
+        || (Array.isArray(d) ? d : []);
+      return list;
     });
 
     // Sort by start time
     events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
+    console.log(`[Calendar] Found ${calendars.length} calendar(s), ${events.length} event(s)`);
     res.json({ events });
   } catch (err) {
     res.status(500).json({ error: err.message });
