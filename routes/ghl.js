@@ -193,6 +193,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
       type: req.body.type || 'SMS',
       conversationId: req.params.id,
       message: req.body.message,
+      contactId: req.body.contactId,
     };
     console.log('[SendMessage] payload:', payload);
     const response = await ghlClient(apiKey).post('/conversations/messages', payload);
@@ -241,13 +242,22 @@ router.get('/appointments', async (req, res) => {
 
     // Step 2: fetch events for each calendar — 7 days back to 60 days forward
     const now = new Date();
-    const startMs = new Date(now).setHours(0, 0, 0, 0) - 7 * 24 * 60 * 60 * 1000;
-    const endMs = new Date(now).setHours(23, 59, 59, 999) + 60 * 24 * 60 * 60 * 1000;
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - 7);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 60);
+    endDate.setHours(23, 59, 59, 999);
 
     const results = await Promise.allSettled(
       calendars.map(cal =>
         ghl.get('/calendars/events', {
-          params: { calendarId: cal.id, startTime: startMs, endTime: endMs },
+          params: {
+            calendarId: cal.id,
+            startTime: startDate.getTime(),
+            endTime: endDate.getTime(),
+            locationId,
+          },
         })
       )
     );
