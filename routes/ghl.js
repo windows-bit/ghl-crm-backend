@@ -224,23 +224,12 @@ router.get('/calendars', async (req, res) => {
 });
 
 // GET /ghl/appointments
-// GHL v2 requires calendarId (not just locationId) on /calendars/events.
-// So we first fetch all calendars, then pull events for each one in parallel.
+// Uses /calendars/events/appointments with locationId — single call, no per-calendar loop.
 router.get('/appointments', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const ghl = ghlClient(apiKey);
 
-    // Step 1: get all calendars for this location
-    const calsRes = await ghl.get('/calendars/', { params: { locationId } });
-    const calsData = calsRes.data;
-    const calendars = calsData.calendars || calsData.data?.calendars || [];
-
-    if (calendars.length === 0) {
-      return res.json({ events: [] });
-    }
-
-    // Step 2: fetch events for each calendar — 7 days back to 60 days forward
     const now = new Date();
     const startDate = new Date(now);
     startDate.setDate(startDate.getDate() - 7);
@@ -249,41 +238,29 @@ router.get('/appointments', async (req, res) => {
     endDate.setDate(endDate.getDate() + 60);
     endDate.setHours(23, 59, 59, 999);
 
-    const results = await Promise.allSettled(
-      calendars.map(cal =>
-        ghl.get('/calendars/events', {
-          params: {
-            calendarId: cal.id,
-            startTime: startDate.getTime(),
-            endTime: endDate.getTime(),
-            locationId,
-          },
-        })
-      )
-    );
-
-    // Step 3: merge all events from all calendars
-    if (results[0]?.status === 'fulfilled') {
-      console.log('[Calendar] first calendar raw keys:', Object.keys(results[0].value.data));
-    } else if (results[0]) {
-      console.log('[Calendar] first calendar error:', results[0].reason?.message);
-    }
-    const events = results.flatMap(r => {
-      if (r.status !== 'fulfilled') return [];
-      const d = r.value.data;
-      // Handle various GHL response shapes
-      const list = d.events || d.data?.events || d.appointments || d.data?.appointments
-        || (Array.isArray(d.data) ? d.data : null)
-        || (Array.isArray(d) ? d : []);
-      return list;
+    const response = await ghl.get('/calendars/events/appointments', {
+      params: {
+        locationId,
+        startTime: startDate.getTime(),
+        endTime: endDate.getTime(),
+      },
     });
 
-    // Sort by start time
-    events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    const d = response.data;
+    console.log('[Calendar] response keys:', Object.keys(d));
+    const events = d.events || d.appointments || d.data?.events || d.data?.appointments
+      || (Array.isArray(d.data) ? d.data : []);
 
-    console.log(`[Calendar] Found ${calendars.length} calendar(s), ${events.length} event(s)`);
+    events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    console.log(`[Calendar] Found ${events.length} appointment(s)`);
     res.json({ events });
   } catch (err) {
+    const status = err.response?.status;
+    if (status === 403) {
+      return res.status(403).json({
+        error: 'Calendar access denied. In GHL → Settings → Integrations, regenerate your API key and make sure Calendar permissions are enabled.',
+      });
+    }
     res.status(500).json({ error: err.message });
   }
 });
