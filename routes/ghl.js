@@ -189,15 +189,19 @@ router.get('/conversations/:id/messages', async (req, res) => {
 router.post('/conversations/:id/messages', async (req, res) => {
   try {
     const { apiKey } = await getGhlCreds(req.user.id);
-    // v2 send endpoint is POST /conversations/messages (no id in path)
-    const response = await ghlClient(apiKey).post('/conversations/messages', {
+    const payload = {
       type: req.body.type || 'SMS',
       conversationId: req.params.id,
       message: req.body.message,
-    });
+    };
+    console.log('[SendMessage] payload:', payload);
+    const response = await ghlClient(apiKey).post('/conversations/messages', payload);
     res.status(201).json(response.data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const errData = err.response?.data;
+    const errMsg = errData?.message || errData?.error || JSON.stringify(errData) || err.message;
+    console.error('[SendMessage] error:', errMsg);
+    res.status(err.response?.status || 500).json({ error: errMsg });
   }
 });
 
@@ -249,6 +253,11 @@ router.get('/appointments', async (req, res) => {
     );
 
     // Step 3: merge all events from all calendars
+    if (results[0]?.status === 'fulfilled') {
+      console.log('[Calendar] first calendar raw keys:', Object.keys(results[0].value.data));
+    } else if (results[0]) {
+      console.log('[Calendar] first calendar error:', results[0].reason?.message);
+    }
     const events = results.flatMap(r => {
       if (r.status !== 'fulfilled') return [];
       const d = r.value.data;
