@@ -268,19 +268,24 @@ router.get('/appointments', async (req, res) => {
       )
     );
 
-    // Step 3: merge all events from all calendars
+    // Step 3: merge all events, tagging each with its calendar color + name
     const events = [];
     results.forEach((result, i) => {
+      const cal = calendars[i];
       if (result.status === 'fulfilled') {
         const d = result.value.data;
         const calEvents = d.events || d.appointments || d.data?.events
           || (Array.isArray(d.data) ? d.data : []);
-        console.log(`[Calendar] ${calendars[i].name}: ${calEvents.length} event(s)`);
+        console.log(`[Calendar] ${cal.name}: ${calEvents.length} event(s)`);
+        calEvents.forEach(e => {
+          e._calendarName = cal.name;
+          e._calendarColor = cal.eventColor || null;
+        });
         events.push(...calEvents);
       } else {
         const status = result.reason?.response?.status;
         const msg = result.reason?.response?.data?.message || result.reason?.message;
-        console.error(`[Calendar] ${calendars[i].name} error ${status}:`, msg);
+        console.error(`[Calendar] ${cal.name} error ${status}:`, msg);
       }
     });
 
