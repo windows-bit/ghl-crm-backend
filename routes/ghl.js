@@ -247,15 +247,23 @@ router.get('/appointments', async (req, res) => {
       return res.json({ events: [] });
     }
 
-    // Step 2: fetch events for each calendar (now that permissions are enabled)
+    // Step 2: fetch events for each calendar
+    // NOTE: /calendars/events requires Version: 2021-04-15 (different from other endpoints)
     const results = await Promise.allSettled(
       calendars.map(cal =>
-        ghl.get('/calendars/events', {
+        axios.get('https://services.leadconnectorhq.com/calendars/events', {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            Version: '2021-04-15',
+          },
           params: {
+            locationId,
             calendarId: cal.id,
             startTime: startDate.getTime(),
             endTime: endDate.getTime(),
           },
+          timeout: 10000,
         })
       )
     );
