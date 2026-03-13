@@ -238,7 +238,7 @@ router.get('/appointments', async (req, res) => {
     endDate.setDate(endDate.getDate() + 60);
     endDate.setHours(23, 59, 59, 999);
 
-    const response = await ghl.get('/calendars/events/appointments', {
+    const response = await ghl.get('/calendars/events', {
       params: {
         locationId,
         startTime: startDate.getTime(),
@@ -256,12 +256,14 @@ router.get('/appointments', async (req, res) => {
     res.json({ events });
   } catch (err) {
     const status = err.response?.status;
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+    console.error(`[Calendar] Error ${status}:`, errMsg);
     if (status === 403) {
       return res.status(403).json({
-        error: 'Calendar access denied. In GHL → Settings → Integrations, regenerate your API key and make sure Calendar permissions are enabled.',
+        error: 'Calendar access denied. In GHL → Settings → Integrations, make sure Calendar permissions are enabled on your API key.',
       });
     }
-    res.status(500).json({ error: err.message });
+    res.status(status || 500).json({ error: errMsg });
   }
 });
 
