@@ -44,19 +44,19 @@ function ghlClient(apiKey) {
 
 // ─── CONTACTS ────────────────────────────────────────────────────────────────
 
-// GET /ghl/contacts?search=John&limit=20&page=1
+// GET /ghl/contacts?search=John&limit=20
 router.get('/contacts', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const { search } = req.query;
     const limit = parseInt(req.query.limit) || 20;
 
-    const params = { locationId, limit };
-    if (search) params.query = search;
+    // GHL v2: POST /contacts/search (GET /contacts/ is deprecated, returns 422)
+    const body = { locationId, pageSize: limit, page: 1 };
+    if (search) body.searchText = search;
 
-    const response = await ghlClient(apiKey).get('/contacts/', { params });
+    const response = await ghlClient(apiKey).post('/contacts/search', body);
     const data = response.data;
-    // GHL v2 returns { contacts: [...], meta: { total, ... } }
     const contacts = data.contacts || data.data?.contacts || [];
     const meta = data.meta || data.data?.meta || {};
     res.json({ contacts, meta });
