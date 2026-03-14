@@ -48,10 +48,10 @@ function ghlClient(apiKey) {
 router.get('/contacts', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
-    const { search, limit = 20, page = 1 } = req.query;
+    const { search } = req.query;
+    const limit = parseInt(req.query.limit) || 20;
 
-    // GHL v2 contacts uses `skip` for offset-based pagination (not startAfter which is a cursor)
-    const params = { locationId, limit, skip: (page - 1) * limit };
+    const params = { locationId, limit };
     if (search) params.query = search;
 
     const response = await ghlClient(apiKey).get('/contacts/', { params });
@@ -61,7 +61,10 @@ router.get('/contacts', async (req, res) => {
     const meta = data.meta || data.data?.meta || {};
     res.json({ contacts, meta });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.response?.status;
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+    console.error('[Contacts] GHL error', status, errMsg);
+    res.status(status || 500).json({ error: errMsg });
   }
 });
 
