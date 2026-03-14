@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const [newKey, setNewKey] = useState('');
+  const [newLocationId, setNewLocationId] = useState('');
   const [saving, setSaving] = useState(false);
   const [showKeyForm, setShowKeyForm] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -36,12 +37,15 @@ export default function SettingsScreen() {
     if (!newKey.trim()) return;
     setSaving(true);
     try {
-      await client.post('/auth/ghl-key', { ghlKey: newKey.trim() });
-      Alert.alert('Saved', 'Your GHL API key has been updated.');
+      const body = { ghlKey: newKey.trim() };
+      if (newLocationId.trim()) body.locationId = newLocationId.trim();
+      await client.post('/auth/ghl-key', body);
+      Alert.alert('Saved', 'Your GHL credentials have been updated.');
       setNewKey('');
+      setNewLocationId('');
       setShowKeyForm(false);
     } catch {
-      Alert.alert('Error', 'Could not update key. Try again.');
+      Alert.alert('Error', 'Could not update. Try again.');
     } finally {
       setSaving(false);
     }
@@ -109,13 +113,22 @@ export default function SettingsScreen() {
             <View style={styles.keyForm}>
               <TextInput
                 style={styles.keyInput}
-                placeholder="Paste new GHL API Key"
+                placeholder="Paste new GHL API Key (pit-...)"
                 placeholderTextColor="#9CA3AF"
                 value={newKey}
                 onChangeText={setNewKey}
                 autoCapitalize="none"
                 autoCorrect={false}
                 secureTextEntry
+              />
+              <TextInput
+                style={styles.keyInput}
+                placeholder="Location ID (optional, updates existing)"
+                placeholderTextColor="#9CA3AF"
+                value={newLocationId}
+                onChangeText={setNewLocationId}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               <TouchableOpacity
                 style={[styles.saveKeyBtn, saving && { opacity: 0.6 }]}
@@ -124,7 +137,7 @@ export default function SettingsScreen() {
               >
                 {saving
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={styles.saveKeyBtnText}>Save New Key</Text>
+                  : <Text style={styles.saveKeyBtnText}>Save Credentials</Text>
                 }
               </TouchableOpacity>
             </View>
