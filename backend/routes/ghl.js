@@ -51,11 +51,11 @@ router.get('/contacts', async (req, res) => {
     const { search } = req.query;
     const limit = parseInt(req.query.limit) || 20;
 
-    // GHL v2: POST /contacts/search (GET /contacts/ is deprecated, returns 422)
-    const body = { locationId, pageSize: limit, page: 1 };
-    if (search) body.searchText = search;
+    // Minimal params — only locationId to avoid 422
+    const params = { locationId };
+    if (search) params.query = search;
 
-    const response = await ghlClient(apiKey).post('/contacts/search', body);
+    const response = await ghlClient(apiKey).get('/contacts/', { params });
     const data = response.data;
     const contacts = data.contacts || data.data?.contacts || [];
     const meta = data.meta || data.data?.meta || {};
