@@ -42,6 +42,36 @@ function ghlClient(apiKey) {
   });
 }
 
+// ─── DEBUG / TEST ─────────────────────────────────────────────────────────────
+
+// GET /ghl/test — verify stored credentials and test GHL connection
+router.get('/test', async (req, res) => {
+  let creds = null;
+  try {
+    creds = await getGhlCreds(req.user.id);
+  } catch (e) {
+    return res.json({ success: false, error: e.message, stage: 'get_creds' });
+  }
+
+  try {
+    const response = await ghlClient(creds.apiKey).get(`/locations/${creds.locationId}`);
+    res.json({
+      success: true,
+      locationId: creds.locationId,
+      keyLength: creds.apiKey.length,
+      locationName: response.data?.location?.name || response.data?.name || 'Connected',
+    });
+  } catch (err) {
+    res.json({
+      success: false,
+      locationId: creds.locationId,
+      keyLength: creds.apiKey.length,
+      ghlStatus: err.response?.status,
+      ghlError: err.response?.data || err.message,
+    });
+  }
+});
+
 // ─── CONTACTS ────────────────────────────────────────────────────────────────
 
 // GET /ghl/contacts?search=John&limit=20
@@ -49,12 +79,11 @@ router.get('/contacts', async (req, res) => {
   try {
     const { apiKey, locationId } = await getGhlCreds(req.user.id);
     const { search } = req.query;
-    const limit = parseInt(req.query.limit) || 20;
 
-    // Minimal params — only locationId to avoid 422
     const params = { locationId };
     if (search) params.query = search;
 
+    console.log('[Contacts] Calling GHL with locationId:', locationId);
     const response = await ghlClient(apiKey).get('/contacts/', { params });
     const data = response.data;
     const contacts = data.contacts || data.data?.contacts || [];
@@ -63,7 +92,7 @@ router.get('/contacts', async (req, res) => {
   } catch (err) {
     const status = err.response?.status;
     const errData = err.response?.data;
-    console.error('[Contacts] GHL error', status, JSON.stringify(errData));
+    console.error('[Contacts] Error:', status, errData?.message || errData || err.message);
     res.status(status || 500).json({ error: errData || err.message });
   }
 });
