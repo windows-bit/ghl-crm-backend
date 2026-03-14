@@ -62,9 +62,9 @@ router.get('/contacts', async (req, res) => {
     res.json({ contacts, meta });
   } catch (err) {
     const status = err.response?.status;
-    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
-    console.error('[Contacts] GHL error', status, errMsg);
-    res.status(status || 500).json({ error: errMsg });
+    const errData = err.response?.data;
+    console.error('[Contacts] GHL error', status, JSON.stringify(errData));
+    res.status(status || 500).json({ error: errData || err.message });
   }
 });
 
