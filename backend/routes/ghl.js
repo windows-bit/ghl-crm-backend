@@ -87,8 +87,13 @@ router.get('/contacts', async (req, res) => {
     const params = { locationId };
     if (search) params.query = search;
 
-    console.log('[Contacts] Calling GHL with locationId:', locationId);
-    const response = await ghlClient(apiKey).get('/contacts/', { params });
+    // Use raw axios without Content-Type — ghlClient sets Content-Type: application/json
+    // on all requests including GET, which causes the contacts endpoint to return 422
+    const response = await axios.get('https://services.leadconnectorhq.com/contacts/', {
+      headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28' },
+      params,
+      timeout: 15000,
+    });
     const data = response.data;
     const contacts = data.contacts || data.data?.contacts || [];
     const meta = data.meta || data.data?.meta || {};
@@ -96,8 +101,11 @@ router.get('/contacts', async (req, res) => {
   } catch (err) {
     const status = err.response?.status;
     const errData = err.response?.data;
-    console.error('[Contacts] Error:', status, errData?.message || errData || err.message);
-    res.status(status || 500).json({ error: errData || err.message });
+    const message = Array.isArray(errData?.message)
+      ? errData.message.join(', ')
+      : errData?.message || errData?.error || err.message;
+    console.error('[Contacts] Error:', status, message);
+    res.status(status || 500).json({ error: message });
   }
 });
 
