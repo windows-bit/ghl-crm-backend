@@ -23,6 +23,10 @@ async function getGhlCreds(userId) {
     throw new Error('GHL API key not found. Please set up your GHL key first.');
   }
 
+  if (!data.ghl_location_id) {
+    throw new Error('Location ID not set. Go to Settings → Update GHL key to add your Location ID.');
+  }
+
   return {
     apiKey: decrypt(data.ghl_key_encrypted),
     locationId: data.ghl_location_id,

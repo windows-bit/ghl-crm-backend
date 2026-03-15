@@ -34,10 +34,14 @@ export default function SettingsScreen() {
   }
 
   async function updateGhlKey() {
-    if (!newKey.trim()) return;
+    if (!newKey.trim() && !newLocationId.trim()) {
+      Alert.alert('Missing fields', 'Enter a new API key, a Location ID, or both.');
+      return;
+    }
     setSaving(true);
     try {
-      const body = { ghlKey: newKey.trim() };
+      const body = {};
+      if (newKey.trim()) body.ghlKey = newKey.trim();
       if (newLocationId.trim()) body.locationId = newLocationId.trim();
       await client.post('/auth/ghl-key', body);
       Alert.alert('Saved', 'Your GHL credentials have been updated.');
@@ -123,7 +127,7 @@ export default function SettingsScreen() {
               />
               <TextInput
                 style={styles.keyInput}
-                placeholder="Location ID (optional, updates existing)"
+                placeholder="Location ID (e.g. ZPL1eulX1pNHJrf5Zji0)"
                 placeholderTextColor="#9CA3AF"
                 value={newLocationId}
                 onChangeText={setNewLocationId}
