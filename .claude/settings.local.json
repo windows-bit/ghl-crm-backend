@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:highlevel.stoplight.io)",
+      "Bash(curl -s -X GET \"https://services.leadconnectorhq.com/contacts/?locationId=ZPL1eulX1pNHJrf5Zji0&limit=10&sortBy=date_added&sortOrder=desc\" -H \"Authorization: Bearer pit-493dbfd4-e844-40f3-b39a-9d6e12ebb7f6\" -H \"Version: 2021-07-28\" -H \"Content-Type: application/json\")",
+      "Bash(curl -s -X GET \"https://services.leadconnectorhq.com/contacts/?locationId=ZPL1eulX1pNHJrf5Zji0&limit=10\" -H \"Authorization: Bearer pit-493dbfd4-e844-40f3-b39a-9d6e12ebb7f6\" -H \"Version: 2021-07-28\" -H \"Content-Type: application/json\")"
+    ]
+  }
+}

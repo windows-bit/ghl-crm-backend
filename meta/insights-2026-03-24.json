@@ -1,0 +1,57 @@
+{
+  "date": "2026-03-24",
+  "last30": {
+    "spend": "2685.35",
+    "leads": 84,
+    "clicks": 1759,
+    "impressions": 189596,
+    "cpl": "31.97",
+    "campaigns": [
+      {
+        "name": "Cold Leads Campaign",
+        "spend": 2412.80,
+        "leads": 82,
+        "clicks": 1617,
+        "revenue": 0,
+        "roas": null,
+        "cpl": "29.42"
+      },
+      {
+        "name": "Roof Retargeting",
+        "spend": 272.55,
+        "leads": 2,
+        "clicks": 142,
+        "revenue": 0,
+        "roas": null,
+        "cpl": "136.28"
+      }
+    ]
+  },
+  "last7": {
+    "spend": "739.17",
+    "leads": 14,
+    "clicks": 461,
+    "impressions": 49209,
+    "cpl": "52.80",
+    "campaigns": [
+      {
+        "name": "Cold Leads Campaign",
+        "spend": 600.27,
+        "leads": 14,
+        "clicks": 389,
+        "revenue": 0,
+        "roas": null,
+        "cpl": "42.88"
+      },
+      {
+        "name": "Roof Retargeting",
+        "spend": 138.90,
+        "leads": 0,
+        "clicks": 72,
+        "revenue": 0,
+        "roas": null,
+        "cpl": null
+      }
+    ]
+  }
+}

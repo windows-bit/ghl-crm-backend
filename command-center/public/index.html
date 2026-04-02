@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spot Off Command Center</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+    header { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; border-bottom: 1px solid #1e2333; }
+    header h1 { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    header h1 span { color: #4f9cf9; }
+    .meta { font-size: 13px; color: #64748b; }
+    .refresh-btn { background: #1e2333; border: 1px solid #2d3748; color: #94a3b8; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+    .refresh-btn:hover { background: #2d3748; color: #e2e8f0; }
+    .refresh-btn.loading { opacity: 0.6; cursor: not-allowed; }
+
+    main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+    /* Summary Cards */
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .card { background: #1a1f2e; border: 1px solid #1e2333; border-radius: 10px; padding: 20px 24px; }
+    .card .label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .card .value { font-size: 32px; font-weight: 700; color: #fff; }
+    .card .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .card.roas .value { color: #22c55e; }
+    .card.spend .value { color: #f97316; }
+    .card.leads .value { color: #4f9cf9; }
+    .card.jobs .value { color: #a78bfa; }
+
+    /* Sections */
+    .sections { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .section { background: #1a1f2e; border: 1px solid #1e2333; border-radius: 10px; padding: 20px 24px; }
+    .section h2 { font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+    .section.full { grid-column: 1 / -1; }
+
+    /* Stat Row */
+    .stat-row { display: flex; gap: 32px; margin-bottom: 16px; }
+    .stat { }
+    .stat .s-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; }
+    .stat .s-value { font-size: 22px; font-weight: 600; color: #fff; margin-top: 2px; }
+
+    /* Pipeline */
+    .pipeline { display: flex; gap: 0; margin-bottom: 8px; overflow-x: auto; }
+    .pipe-stage { flex: 1; min-width: 80px; text-align: center; padding: 12px 8px; background: #12161f; border: 1px solid #1e2333; border-right: none; }
+    .pipe-stage:first-child { border-radius: 6px 0 0 6px; }
+    .pipe-stage:last-child { border-right: 1px solid #1e2333; border-radius: 0 6px 6px 0; }
+    .pipe-stage .p-count { font-size: 24px; font-weight: 700; color: #4f9cf9; }
+    .pipe-stage .p-name { font-size: 10px; color: #64748b; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; padding: 0 8px 10px 0; border-bottom: 1px solid #1e2333; }
+    td { padding: 10px 8px 10px 0; border-bottom: 1px solid #12161f; color: #cbd5e1; }
+    tr:last-child td { border-bottom: none; }
+
+    /* Error / loading */
+    .error-msg { color: #f87171; font-size: 13px; padding: 12px 0; }
+    .loading-msg { color: #64748b; font-size: 13px; padding: 12px 0; }
+
+    /* LSA section */
+    .lsa-row { display: flex; gap: 32px; }
+
+    /* Intelligence section */
+    .intel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .intel-header h2 { font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
+    .agent-pills { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .agent-pill { display: flex; align-items: center; gap: 6px; background: #12161f; border: 1px solid #1e2333; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #64748b; }
+    .agent-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #64748b; flex-shrink: 0; }
+    .agent-pill.ok .dot { background: #22c55e; }
+    .agent-pill.running .dot { background: #f97316; animation: pulse 1s infinite; }
+    .agent-pill.error .dot { background: #f87171; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .intel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+    .intel-card { background: #1a1f2e; border: 1px solid #1e2333; border-radius: 10px; padding: 18px 20px; }
+    .intel-card h3 { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 14px; }
+
+    .reddit-post { padding: 10px 0; border-bottom: 1px solid #12161f; }
+    .reddit-post:last-child { border-bottom: none; }
+    .reddit-post .r-title { font-size: 13px; color: #cbd5e1; line-height: 1.4; margin-bottom: 4px; }
+    .reddit-post .r-meta { font-size: 11px; color: #64748b; }
+
+    .ad-item { padding: 10px 0; border-bottom: 1px solid #12161f; }
+    .ad-item:last-child { border-bottom: none; }
+    .ad-item .a-hook { font-size: 13px; color: #cbd5e1; line-height: 1.4; margin-bottom: 4px; font-style: italic; }
+    .ad-item .a-meta { font-size: 11px; color: #64748b; }
+
+    .tiktok-item { padding: 10px 0; border-bottom: 1px solid #12161f; }
+    .tiktok-item:last-child { border-bottom: none; }
+    .tiktok-item .t-hook { font-size: 13px; color: #cbd5e1; line-height: 1.4; margin-bottom: 4px; }
+    .tiktok-item .t-meta { font-size: 11px; color: #64748b; }
+    .content-badge { display: inline-block; background: #1e2333; border-radius: 4px; padding: 2px 7px; font-size: 10px; color: #94a3b8; margin-right: 6px; }
+
+    /* AI Recommendations panel */
+    .recs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .recs-card { background: #1a1f2e; border: 1px solid #1e2333; border-radius: 10px; padding: 18px 20px; }
+    .recs-card .rc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    .recs-card h3 { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px; }
+    .recs-card .rc-time { font-size: 11px; color: #475569; }
+    .rec-list { list-style: none; }
+    .rec-list li { font-size: 13px; color: #cbd5e1; line-height: 1.5; padding: 6px 0 6px 14px; border-bottom: 1px solid #12161f; position: relative; }
+    .rec-list li:last-child { border-bottom: none; }
+    .rec-list li::before { content: '→'; position: absolute; left: 0; color: #4f9cf9; font-size: 11px; top: 8px; }
+    .idea-item { padding: 10px 0; border-bottom: 1px solid #12161f; cursor: pointer; transition: background 0.1s; border-radius: 6px; padding: 10px 8px; }
+    .idea-item:last-child { border-bottom: none; }
+    .idea-item:hover { background: #1e2333; }
+    .idea-item .i-title { font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 4px; }
+    .idea-item .i-hook { font-size: 12px; color: #4f9cf9; font-style: italic; margin-bottom: 4px; }
+    .idea-item .i-format { font-size: 12px; color: #94a3b8; margin-bottom: 3px; }
+    .idea-item .i-why { font-size: 11px; color: #64748b; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 14px; padding: 28px 32px; max-width: 560px; width: 90%; position: relative; max-height: 80vh; overflow-y: auto; }
+    .modal-close { position: absolute; top: 14px; right: 18px; background: none; border: none; color: #64748b; font-size: 20px; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: #fff; }
+    .modal-tag { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; padding: 3px 9px; border-radius: 20px; background: #0f4c81; color: #60a5fa; margin-bottom: 14px; }
+    .modal-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 18px; line-height: 1.3; }
+    .modal-section { margin-bottom: 16px; }
+    .modal-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #475569; margin-bottom: 5px; }
+    .modal-value { font-size: 14px; color: #cbd5e1; line-height: 1.6; }
+    .modal-value.hook { color: #4f9cf9; font-style: italic; font-size: 15px; }
+    .modal-copy-btn { margin-top: 6px; font-size: 11px; padding: 4px 10px; background: #0f3460; border: 1px solid #1e4a8a; color: #60a5fa; border-radius: 6px; cursor: pointer; }
+    .modal-copy-btn:hover { background: #1e4a8a; }
+
+    .run-btn { background: #1e2333; border: 1px solid #2d3748; color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.15s; }
+    .run-btn:hover { background: #2d3748; color: #e2e8f0; }
+    .run-btn.loading { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Spot Off <span>Command Center</span></h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <span class="meta" id="last-updated">Loading...</span>
+      <button class="refresh-btn" id="refresh-btn" onclick="refreshData()">Refresh Now</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Summary Cards -->
+    <div class="summary">
+      <div class="card spend">
+        <div class="label">Total Ad Spend</div>
+        <div class="value" id="total-spend">—</div>
+        <div class="sub">Meta + LSA · 30 days</div>
+      </div>
+      <div class="card leads">
+        <div class="label">Total Leads</div>
+        <div class="value" id="total-leads">—</div>
+        <div class="sub">Meta + LSA · 30 days</div>
+      </div>
+      <div class="card jobs">
+        <div class="label">Jobs Completed</div>
+        <div class="value" id="jobs-done">—</div>
+        <div class="sub" id="jobs-revenue">—</div>
+      </div>
+      <div class="card roas">
+        <div class="label">ROAS</div>
+        <div class="value" id="roas">—</div>
+        <div class="sub">Revenue ÷ Ad Spend</div>
+      </div>
+    </div>
+
+    <!-- Meta + GHL side by side -->
+    <div class="sections">
+      <div class="section">
+        <h2>Meta Ads · 30 Days</h2>
+        <div class="stat-row" id="meta-stats">
+          <div class="loading-msg">Loading...</div>
+        </div>
+        <table id="meta-campaigns-table" style="display:none">
+          <thead><tr><th>Campaign</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Revenue</th><th>ROAS</th></tr></thead>
+          <tbody id="meta-campaigns"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>GHL Pipeline</h2>
+        <div class="pipeline" id="pipeline-stages"></div>
+        <div class="stat-row" style="margin-top:16px;" id="ghl-stats">
+          <div class="loading-msg">Loading...</div>
+        </div>
+      </div>
+
+      <div class="section full">
+        <h2>Google LSA · 30 Days</h2>
+        <div class="lsa-row" id="lsa-stats">
+          <div class="loading-msg">Loading...</div>
+        </div>
+      </div>
+
+      <div class="section full">
+        <h2>Active Ads · Last 7 Days</h2>
+        <table id="active-ads-table" style="display:none">
+          <thead><tr><th>Ad Name</th><th>Campaign</th><th>Ad Set</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Clicks</th><th>CTR</th></tr></thead>
+          <tbody id="active-ads-body"></tbody>
+        </table>
+        <div id="active-ads-loading" class="loading-msg">Loading...</div>
+      </div>
+    </div>
+    <!-- Niche Intelligence -->
+    <div style="margin-bottom:28px;">
+      <div class="intel-header">
+        <h2>Niche Intelligence</h2>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="agent-pills" id="agent-pills">
+            <div class="agent-pill" id="pill-reddit"><div class="dot"></div>Reddit</div>
+            <div class="agent-pill" id="pill-meta-lib"><div class="dot"></div>Meta Library</div>
+            <div class="agent-pill" id="pill-tiktok"><div class="dot"></div>TikTok</div>
+          </div>
+          <button class="run-btn" id="run-research-btn" onclick="runResearch()">Run Research Now</button>
+        </div>
+      </div>
+
+      <div class="intel-grid">
+        <div class="intel-card">
+          <h3>Reddit Buzz</h3>
+          <div id="reddit-content"><div class="loading-msg">No data yet — click Run Research Now</div></div>
+        </div>
+        <div class="intel-card">
+          <h3>Meta Ad Library</h3>
+          <div id="meta-lib-content"><div class="loading-msg">No data yet — click Run Research Now</div></div>
+        </div>
+        <div class="intel-card">
+          <h3>TikTok Trends</h3>
+          <div id="tiktok-intel-content"><div class="loading-msg">No data yet — click Run Research Now</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Recommendations -->
+    <div style="margin-bottom:28px;">
+      <div class="intel-header">
+        <h2>AI Recommendations</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="run-btn" onclick="runTikTokIdeas()">New TikTok Ideas</button>
+          <button class="run-btn" onclick="runMetaRecs()">New Meta Recs</button>
+        </div>
+      </div>
+      <div class="recs-grid">
+        <div class="recs-card">
+          <div class="rc-header">
+            <h3>TikTok Ideas</h3>
+            <span class="rc-time" id="tiktok-ideas-time">Daily</span>
+          </div>
+          <div id="tiktok-ideas-content"><div class="loading-msg">No ideas yet — run research first</div></div>
+        </div>
+        <div class="recs-card">
+          <div class="rc-header">
+            <h3>Meta Ads Recs</h3>
+            <span class="rc-time" id="meta-recs-time">Tue + Fri</span>
+          </div>
+          <div id="meta-recs-content"><div class="loading-msg">No recs yet — run research first</div></div>
+        </div>
+        <div class="recs-card">
+          <div class="rc-header">
+            <h3>Niche Buzz</h3>
+            <span class="rc-time" id="niche-buzz-time">Daily</span>
+          </div>
+          <div id="niche-buzz-content"><div class="loading-msg">No buzz yet — run research first</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal-box">
+      <button class="modal-close" id="modal-close">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script>
+    const STAGE_ORDER = ['Contacted', 'Waiting for Response', 'Quote Scheduled', 'Quote Delivered', 'Won', 'Paid', 'Job Complete'];
+
+    function fmt$(n) { return '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+    function fmtN(n) { return parseInt(n || 0).toLocaleString(); }
+
+    async function loadData() {
+      const res = await fetch('/api/dashboard');
+      if (!res.ok) throw new Error('Failed to load data');
+      return res.json();
+    }
+
+    function renderSummary(data) {
+      const metaSpend = parseFloat(data.meta?.last30?.spend || 0);
+      const lsaSpend = parseFloat(data.lsa?.spend || 0);
+      const totalSpend = metaSpend + lsaSpend;
+
+      const metaLeads = parseInt(data.meta?.last30?.leads || 0);
+      const lsaLeads = parseInt(data.lsa?.leads || 0);
+      const totalLeads = metaLeads + lsaLeads;
+
+      const completedRevenue = parseFloat(data.ghl?.completedRevenue || 0);
+      const completedCount = parseInt(data.ghl?.completedCount || 0);
+      const roas = totalSpend > 0 ? (completedRevenue / totalSpend).toFixed(1) : '—';
+
+      document.getElementById('total-spend').textContent = fmt$(totalSpend);
+      document.getElementById('total-leads').textContent = fmtN(totalLeads);
+      document.getElementById('jobs-done').textContent = fmtN(completedCount);
+      document.getElementById('jobs-revenue').textContent = fmt$(completedRevenue) + ' revenue';
+      document.getElementById('roas').textContent = roas !== '—' ? roas + 'x' : '—';
+    }
+
+    function renderMeta(meta) {
+      const el = document.getElementById('meta-stats');
+      if (meta?.error) { el.innerHTML = `<div class="error-msg">Meta Ads API error: ${meta.error}${meta.detail?.error?.message ? ' — ' + meta.detail.error.message : ''}<br><small style="color:#94a3b8;">Hit Refresh Now after fixing, or visit /api/debug for details</small></div>`; return; }
+
+      const d = meta?.last30;
+      el.innerHTML = `
+        <div class="stat"><div class="s-label">Spend</div><div class="s-value">${fmt$(d?.spend)}</div></div>
+        <div class="stat"><div class="s-label">Leads</div><div class="s-value">${fmtN(d?.leads)}</div></div>
+        <div class="stat"><div class="s-label">CPL</div><div class="s-value">${d?.cpl ? fmt$(d.cpl) : '—'}</div></div>
+        <div class="stat"><div class="s-label">Clicks</div><div class="s-value">${fmtN(d?.clicks)}</div></div>
+      `;
+
+      const campaigns = d?.campaigns || [];
+      if (campaigns.length > 0) {
+        const tbody = document.getElementById('meta-campaigns');
+        tbody.innerHTML = campaigns.map(c => `
+          <tr>
+            <td>${c.name}</td>
+            <td>${fmt$(c.spend)}</td>
+            <td>${fmtN(c.leads)}</td>
+            <td>${c.cpl ? fmt$(c.cpl) : '—'}</td>
+            <td>${c.revenue > 0 ? fmt$(c.revenue) : '—'}</td>
+            <td style="color:${c.roas >= 3 ? '#22c55e' : c.roas > 0 ? '#f97316' : '#64748b'}">${c.roas ? c.roas + 'x' : '—'}</td>
+          </tr>
+        `).join('');
+        document.getElementById('meta-campaigns-table').style.display = 'table';
+      }
+    }
+
+    function renderGHL(ghl, metaLeads) {
+      const stagesEl = document.getElementById('pipeline-stages');
+      const statsEl = document.getElementById('ghl-stats');
+
+      if (ghl?.error) { statsEl.innerHTML = `<div class="error-msg">GHL error: ${ghl.error}</div>`; return; }
+
+      const stages = ghl?.stages || {};
+      const allStages = STAGE_ORDER.filter(s => stages[s] !== undefined);
+
+      stagesEl.innerHTML = allStages.map(s => `
+        <div class="pipe-stage">
+          <div class="p-count">${fmtN(stages[s])}</div>
+          <div class="p-name" title="${s}">${s}</div>
+        </div>
+      `).join('');
+
+      const convRate = metaLeads > 0
+        ? ((ghl.completedCount / metaLeads) * 100).toFixed(1) + '%'
+        : '—';
+
+      statsEl.innerHTML = `
+        <div class="stat"><div class="s-label">Paid Revenue</div><div class="s-value" style="color:#22c55e">${fmt$(ghl.completedRevenue)}</div></div>
+        <div class="stat"><div class="s-label">Quotes Scheduled</div><div class="s-value">${fmtN(ghl.quotedCount)}</div></div>
+        <div class="stat"><div class="s-label">Conv. Rate</div><div class="s-value">${convRate}</div></div>
+      `;
+    }
+
+    function renderActiveAds(activeAds, metaError) {
+      const loadingEl = document.getElementById('active-ads-loading');
+      const tableEl = document.getElementById('active-ads-table');
+      const tbody = document.getElementById('active-ads-body');
+
+      if (metaError) {
+        loadingEl.textContent = 'Unavailable — Meta API error (see Meta Ads section above)';
+        return;
+      }
+      if (!activeAds || activeAds.length === 0) {
+        loadingEl.textContent = 'No active ads found';
+        return;
+      }
+
+      tbody.innerHTML = activeAds.map(ad => `
+        <tr>
+          <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ad.name}">${ad.name}</td>
+          <td style="color:#64748b;font-size:12px;">${ad.campaign}</td>
+          <td style="color:#64748b;font-size:12px;">${ad.adset}</td>
+          <td>${fmt$(ad.spend)}</td>
+          <td>${fmtN(ad.leads)}</td>
+          <td>${ad.cpl ? fmt$(ad.cpl) : '—'}</td>
+          <td>${fmtN(ad.clicks)}</td>
+          <td style="color:${parseFloat(ad.ctr) >= 1 ? '#22c55e' : '#94a3b8'}">${ad.ctr ? ad.ctr + '%' : '—'}</td>
+        </tr>
+      `).join('');
+
+      loadingEl.style.display = 'none';
+      tableEl.style.display = 'table';
+    }
+
+    function renderLSA(lsa) {
+      const el = document.getElementById('lsa-stats');
+      if (lsa?.error) { el.innerHTML = `<div class="error-msg">LSA error: ${lsa.error}</div>`; return; }
+
+      el.innerHTML = `
+        <div class="stat"><div class="s-label">Spend</div><div class="s-value">${fmt$(lsa?.spend)}</div></div>
+        <div class="stat"><div class="s-label">Leads</div><div class="s-value">${fmtN(lsa?.leads)}</div></div>
+        <div class="stat"><div class="s-label">CPL</div><div class="s-value">${lsa?.cpl ? fmt$(lsa.cpl) : '—'}</div></div>
+      `;
+    }
+
+    async function render() {
+      try {
+        const data = await loadData();
+
+        if (data.lastUpdated) {
+          const d = new Date(data.lastUpdated);
+          document.getElementById('last-updated').textContent = 'Updated ' + d.toLocaleTimeString();
+        }
+
+        renderSummary(data);
+        renderMeta(data.meta);
+        renderGHL(data.ghl, parseInt(data.meta?.last30?.leads || 0));
+        renderLSA(data.lsa);
+        renderActiveAds(data.meta?.activeAds, data.meta?.error);
+      } catch (err) {
+        document.getElementById('last-updated').textContent = 'Error loading data';
+        console.error(err);
+      }
+    }
+
+    async function refreshData() {
+      const btn = document.getElementById('refresh-btn');
+      btn.textContent = 'Refreshing...';
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        await fetch('/api/refresh', { method: 'POST' });
+        await render();
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.textContent = 'Refresh Now';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    // Load on start, auto-refresh every 30 min
+    render();
+    setInterval(render, 30 * 60 * 1000);
+
+    // ─── Niche Intelligence ───────────────────────────────────────────────────
+
+    function fmtViews(n) {
+      if (!n) return '0';
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return String(n);
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function setPill(id, state) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = 'agent-pill ' + state;
+    }
+
+    function renderReddit(posts) {
+      const el = document.getElementById('reddit-content');
+      if (!posts || posts.length === 0) { el.innerHTML = '<div class="loading-msg">No Reddit data</div>'; return; }
+      el.innerHTML = posts.slice(0, 5).map(p => `
+        <div class="reddit-post">
+          <div class="r-title"><a href="${p.url}" target="_blank" style="color:#cbd5e1;text-decoration:none;">${p.title}</a></div>
+          <div class="r-meta">r/${p.subreddit} · ${p.upvotes?.toLocaleString()} upvotes · ${p.comments} comments</div>
+        </div>
+      `).join('');
+      setPill('pill-reddit', 'ok');
+    }
+
+    function renderMetaLibrary(ads) {
+      const el = document.getElementById('meta-lib-content');
+      if (!ads || ads.length === 0) { el.innerHTML = '<div class="loading-msg">No competitor ad data yet — click Run Research Now</div>'; return; }
+      el.innerHTML = ads.slice(0, 4).map(a => `
+        <div class="ad-item" style="cursor:pointer;" onclick="window.open('${a.url}','_blank')">
+          <div class="a-hook">"${a.hook}"</div>
+          <div class="a-meta">${a.advertiser} · ${a.keyword} ↗</div>
+        </div>
+      `).join('');
+      setPill('pill-meta-lib', 'ok');
+    }
+
+    function renderTikTokIntel(videos) {
+      const el = document.getElementById('tiktok-intel-content');
+      if (!videos || videos.length === 0) { el.innerHTML = '<div class="loading-msg">No TikTok data</div>'; return; }
+      el.innerHTML = videos.slice(0, 5).map(v => `
+        <div class="tiktok-item" style="cursor:pointer;" onclick="window.open('${v.url}','_blank')">
+          <div class="t-hook">"${v.hook}"</div>
+          <div class="t-meta"><span class="content-badge">${v.contentType}</span>${fmtViews(v.views)} views · #${v.tag} ↗</div>
+        </div>
+      `).join('');
+      setPill('pill-tiktok', 'ok');
+    }
+
+    function renderNicheBuzz(analysis) {
+      const el = document.getElementById('niche-buzz-content');
+      const buzz = analysis?.nicheBuzz || [];
+      if (buzz.length === 0) { el.innerHTML = '<div class="loading-msg">No buzz yet</div>'; return; }
+      el.innerHTML = '<ul class="rec-list">' + buzz.map(b => `<li>${b}</li>`).join('') + '</ul>';
+    }
+
+    // Store ideas/recs globally so onclick handlers can reference them by index
+    let _tikIdeas = [];
+    let _metaRecs = [];
+
+    function renderTikTokIdeas(ideas) {
+      _tikIdeas = ideas || [];
+      const el = document.getElementById('tiktok-ideas-content');
+      if (!_tikIdeas.length) { el.innerHTML = '<div class="loading-msg">No ideas yet</div>'; return; }
+      el.innerHTML = _tikIdeas.map((idea, i) => `
+        <div class="idea-item" onclick="openTikTokModal(${i})">
+          <div class="i-title">${idea.title}</div>
+          <div class="i-hook">"${idea.hook}"</div>
+          <div class="i-format"><span class="content-badge">${idea.contentType}</span> · tap for full brief</div>
+        </div>
+      `).join('');
+    }
+
+    function openTikTokModal(i) {
+      const idea = _tikIdeas[i];
+      if (!idea) return;
+      const hookEsc = idea.hook.replace(/'/g, "\\'");
+      openModal(`
+        <span class="modal-tag">${idea.contentType}</span>
+        <div class="modal-title">${idea.title}</div>
+        <div class="modal-section">
+          <div class="modal-label">Opening hook — say this on camera</div>
+          <div class="modal-value hook">"${idea.hook}"</div>
+          <button class="modal-copy-btn" onclick="modalCopy('${hookEsc}', this)">Copy hook</button>
+        </div>
+        <div class="modal-section">
+          <div class="modal-label">How to film it</div>
+          <div class="modal-value">${idea.format}</div>
+        </div>
+        <div class="modal-section">
+          <div class="modal-label">Why it'll get views</div>
+          <div class="modal-value">${idea.why}</div>
+        </div>
+      `);
+    }
+
+    function renderMetaRecs(recs) {
+      _metaRecs = recs || [];
+      const el = document.getElementById('meta-recs-content');
+      if (!_metaRecs.length) { el.innerHTML = '<div class="loading-msg">No recommendations yet</div>'; return; }
+      el.innerHTML = '<ul class="rec-list">' + _metaRecs.map((r, i) => `
+        <li onclick="openMetaRecModal(${i})" style="cursor:pointer;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color=''">${r}</li>
+      `).join('') + '</ul>';
+    }
+
+    function openMetaRecModal(i) {
+      const rec = _metaRecs[i];
+      if (!rec) return;
+      const recEsc = rec.replace(/'/g, "\\'");
+      // Split into a headline (first sentence) and the rest
+      const firstDot = rec.indexOf('. ');
+      const headline = firstDot > 0 ? rec.substring(0, firstDot + 1) : rec;
+      const detail = firstDot > 0 ? rec.substring(firstDot + 2) : '';
+      openModal(`
+        <span class="modal-tag">Meta Ads Rec</span>
+        <div class="modal-title">${headline}</div>
+        ${detail ? `<div class="modal-section"><div class="modal-value">${detail}</div></div>` : ''}
+        <button class="modal-copy-btn" onclick="modalCopy('${recEsc}', this)">Copy recommendation</button>
+      `);
+    }
+
+    async function loadIntelligence() {
+      try {
+        const [mi, tikIdeas, metaR] = await Promise.allSettled([
+          fetch('/api/market-intelligence').then(r => r.json()),
+          fetch('/api/tiktok-ideas').then(r => r.json()),
+          fetch('/api/meta-recommendations').then(r => r.json()),
+        ]);
+
+        const miData = mi.status === 'fulfilled' ? mi.value : {};
+        const tikData = tikIdeas.status === 'fulfilled' ? tikIdeas.value : {};
+        const metaRData = metaR.status === 'fulfilled' ? metaR.value : {};
+
+        if (miData.status === 'running') {
+          setPill('pill-reddit', 'running');
+          setPill('pill-meta-lib', 'running');
+          setPill('pill-tiktok', 'running');
+        } else if (miData.status === 'error') {
+          setPill('pill-reddit', 'error');
+          setPill('pill-meta-lib', 'error');
+          setPill('pill-tiktok', 'error');
+        }
+
+        renderReddit(miData?.reddit?.posts);
+        renderMetaLibrary(miData?.metaAdLibrary?.ads);
+        renderTikTokIntel(miData?.tiktok?.videos);
+        renderNicheBuzz(miData?.analysis);
+
+        if (tikData.lastUpdated) {
+          document.getElementById('tiktok-ideas-time').textContent = 'Updated ' + fmtTime(tikData.lastUpdated);
+        }
+        if (metaRData.lastUpdated) {
+          document.getElementById('meta-recs-time').textContent = 'Updated ' + fmtTime(metaRData.lastUpdated);
+        }
+        if (miData.lastUpdated) {
+          document.getElementById('niche-buzz-time').textContent = 'Updated ' + fmtTime(miData.lastUpdated);
+        }
+
+        renderTikTokIdeas(tikData.ideas);
+        renderMetaRecs(metaRData.recommendations);
+      } catch (err) {
+        console.error('Error loading intelligence:', err);
+      }
+    }
+
+    async function runResearch() {
+      const btn = document.getElementById('run-research-btn');
+      btn.textContent = 'Running...';
+      btn.classList.add('loading');
+      btn.disabled = true;
+      setPill('pill-reddit', 'running');
+      setPill('pill-meta-lib', 'running');
+      setPill('pill-tiktok', 'running');
+
+      try {
+        await fetch('/api/research', { method: 'POST' });
+        // Poll every 15s until done (up to 10 min)
+        let tries = 0;
+        const poll = setInterval(async () => {
+          tries++;
+          if (tries > 40) { clearInterval(poll); }
+          const mi = await fetch('/api/market-intelligence').then(r => r.json());
+          if (mi.status === 'complete' || mi.status === 'error') {
+            clearInterval(poll);
+            await loadIntelligence();
+            btn.textContent = 'Run Research Now';
+            btn.classList.remove('loading');
+            btn.disabled = false;
+          }
+        }, 15000);
+      } catch (err) {
+        console.error(err);
+        btn.textContent = 'Run Research Now';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    async function runTikTokIdeas() {
+      await fetch('/api/tiktok-ideas', { method: 'POST' });
+      setTimeout(loadIntelligence, 12000);
+    }
+
+    async function runMetaRecs() {
+      await fetch('/api/meta-recommendations', { method: 'POST' });
+      setTimeout(loadIntelligence, 12000);
+    }
+
+    // ─── Modal ───────────────────────────────────────────────────────────────────
+
+    const _modal = document.getElementById('detail-modal');
+    const _modalBody = document.getElementById('modal-body');
+    document.getElementById('modal-close').onclick = closeModal;
+    _modal.onclick = (e) => { if (e.target === _modal) closeModal(); };
+
+    function openModal(html) {
+      _modalBody.innerHTML = html;
+      _modal.classList.add('open');
+    }
+    function closeModal() {
+      _modal.classList.remove('open');
+    }
+    function modalCopy(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy hook', 1500);
+      });
+    }
+
+    // Load intelligence on start, refresh every 30 min
+    loadIntelligence();
+    setInterval(loadIntelligence, 30 * 60 * 1000);
+  </script>
+</body>
+</html>
