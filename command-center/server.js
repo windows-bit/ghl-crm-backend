@@ -4,6 +4,9 @@ const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 
+const multer = require('multer');
+const { uploadImage, createCreative, createPausedAd } = require('./lib/meta-creator');
+
 const { getPipelineData, getContact } = require('./lib/ghl');
 const { getMetaData } = require('./lib/meta');
 const { getLSAData } = require('./lib/google-lsa');
@@ -22,6 +25,8 @@ const {
 const basicAuth = require('express-basic-auth');
 const app = express();
 app.use(express.json());
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Password protection
 app.use(basicAuth({
@@ -82,6 +87,27 @@ app.get('/api/dashboard', (req, res) => {
 app.post('/api/refresh', (req, res) => {
   res.json({ success: true, message: 'Refresh started' });
   refreshData().catch((err) => console.error('[refresh] Error:', err.message));
+});
+
+// Create a PAUSED image ad in Meta
+app.post('/api/create-ad', upload.single('image'), async (req, res) => {
+  const { headline, primaryText, adName } = req.body;
+
+  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+  if (!headline || !primaryText) return res.status(400).json({ error: 'headline and primaryText are required' });
+
+  try {
+    const imageHash = await uploadImage(req.file.buffer, req.file.originalname);
+    const creativeId = await createCreative(imageHash, headline, primaryText);
+    const adId = await createPausedAd(adName || `Spot Off Ad ${Date.now()}`, creativeId);
+
+    console.log('[ad-creator] Created paused ad:', adId);
+    res.json({ success: true, adId });
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.message;
+    console.error('[ad-creator] Error:', detail);
+    res.status(500).json({ error: detail });
+  }
 });
 
 // ─── Market Intelligence Routes ───────────────────────────────────────────────
@@ -171,6 +197,110 @@ app.get('/api/debug', async (req, res) => {
     results.meta = { ok: false, status: err.response?.status, error: err.response?.data };
   }
   res.json(results);
+});
+
+// Debug — show Job Scheduled stage opportunities with their appointment dates
+app.get('/api/debug-job-scheduled', async (req, res) => {
+  const axios = require('axios');
+  const BASE_URL = 'https://services.leadconnectorhq.com';
+  const headers = { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28' };
+  const MAIN_PIPELINE_ID = 'zFUBxIFQ0LlxKcHbwXFX';
+  try {
+    // Get stage map
+    const plRes = await axios.get(`${BASE_URL}/opportunities/pipelines`, { headers, params: { locationId: process.env.GHL_LOCATION_ID } });
+    const stageMap = {};
+    for (const pl of plRes.data?.pipelines || []) {
+      for (const s of pl.stages || []) stageMap[s.id] = s.name;
+    }
+    // Get all opps
+    let allOpps = [], page = 1;
+    while (true) {
+      const r = await axios.get(`${BASE_URL}/opportunities/search`, { headers, params: { location_id: process.env.GHL_LOCATION_ID, limit: 100, page } });
+      const opps = r.data?.opportunities || [];
+      allOpps = allOpps.concat(opps);
+      if (opps.length < 100) break;
+      page++;
+    }
+    const scheduled = allOpps
+      .filter(o => o.pipelineId === MAIN_PIPELINE_ID)
+      .filter(o => (stageMap[o.pipelineStageId] || '').includes('Job Scheduled') || (stageMap[o.pipelineStageId] || '').includes('Scheduled'))
+      .map(o => ({
+        name: o.name,
+        stage: stageMap[o.pipelineStageId],
+        monetaryValue: o.monetaryValue,
+        lastStageChangeAt: o.lastStageChangeAt,
+        closedDate: o.closedDate,
+      }))
+      .sort((a, b) => new Date(a.lastStageChangeAt) - new Date(b.lastStageChangeAt));
+    res.json({ count: scheduled.length, opps: scheduled });
+  } catch (err) {
+    res.json({ error: err.response?.data || err.message });
+  }
+});
+
+// Debug — list all GHL calendars
+app.get('/api/debug-calendars', async (req, res) => {
+  const axios = require('axios');
+  try {
+    const r = await axios.get('https://services.leadconnectorhq.com/calendars/', {
+      headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28' },
+      params: { locationId: process.env.GHL_LOCATION_ID },
+    });
+    const calendars = (r.data?.calendars || []).map(c => ({ id: c.id, name: c.name, type: c.calendarType }));
+    res.json({ count: calendars.length, calendars });
+  } catch (err) {
+    res.json({ error: err.response?.data || err.message });
+  }
+});
+
+// Debug — show all paid opportunities with their values
+app.get('/api/debug-ghl-sources', async (req, res) => {
+  const axios = require('axios');
+  const BASE_URL = 'https://services.leadconnectorhq.com';
+  const headers = { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28' };
+  const MAIN_PIPELINE_ID = 'zFUBxIFQ0LlxKcHbwXFX';
+  try {
+    // Get stage map
+    const plRes = await axios.get(`${BASE_URL}/opportunities/pipelines`, {
+      headers, params: { locationId: process.env.GHL_LOCATION_ID },
+    });
+    const stageMap = {};
+    for (const pl of plRes.data?.pipelines || []) {
+      for (const s of pl.stages || []) stageMap[s.id] = s.name;
+    }
+
+    // Get all opps
+    let allOpps = [], page = 1;
+    while (true) {
+      const r = await axios.get(`${BASE_URL}/opportunities/search`, {
+        headers, params: { location_id: process.env.GHL_LOCATION_ID, limit: 100, page },
+      });
+      const opps = r.data?.opportunities || [];
+      allOpps = allOpps.concat(opps);
+      if (opps.length < 100) break;
+      page++;
+    }
+
+    const paid = allOpps
+      .filter(o => o.pipelineId === MAIN_PIPELINE_ID)
+      .filter(o => {
+        const stage = stageMap[o.pipelineStageId] || '';
+        return stage === 'Paid' || stage === 'Job Completed' || stage === 'Job Complete';
+      })
+      .map(o => ({
+        name: o.name,
+        source: o.source,
+        monetaryValue: o.monetaryValue,
+        closedDate: o.closedDate,
+        lastStageChangeAt: o.lastStageChangeAt,
+      }))
+      .sort((a, b) => new Date(b.closedDate || b.lastStageChangeAt) - new Date(a.closedDate || a.lastStageChangeAt));
+
+    const total = paid.reduce((sum, o) => sum + (o.monetaryValue || 0), 0);
+    res.json({ count: paid.length, total, opps: paid });
+  } catch (err) {
+    res.json({ error: err.response?.data || err.message });
+  }
 });
 
 // Manual trigger for weekly report

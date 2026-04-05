@@ -59,6 +59,36 @@
     .error-msg { color: #f87171; font-size: 13px; padding: 12px 0; }
     .loading-msg { color: #64748b; font-size: 13px; padding: 12px 0; }
 
+    /* CPL indicator */
+    .cpl-good { color: #22c55e; }
+    .cpl-warn { color: #f97316; }
+    .cpl-bad { color: #f87171; }
+
+    /* Funnel */
+    .funnel { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #1e2333; }
+    .funnel-row { display: flex; align-items: center; gap: 10px; }
+    .funnel-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; width: 110px; flex-shrink: 0; }
+    .funnel-bar-wrap { flex: 1; height: 5px; background: #12161f; border-radius: 3px; }
+    .funnel-bar { height: 100%; border-radius: 3px; background: #4f9cf9; }
+    .funnel-right { display: flex; gap: 8px; align-items: baseline; flex-shrink: 0; width: 80px; justify-content: flex-end; }
+    .funnel-count { font-size: 15px; font-weight: 700; color: #fff; }
+    .funnel-pct { font-size: 11px; color: #64748b; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      header { padding: 14px 16px; }
+      main { padding: 14px 16px; }
+      .summary { grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+      .card .value { font-size: 26px; }
+      .sections { grid-template-columns: 1fr; gap: 14px; }
+      .intel-grid { grid-template-columns: 1fr; }
+      .recs-grid { grid-template-columns: 1fr; }
+      .stat-row { flex-wrap: wrap; gap: 16px; }
+      .intel-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      table { font-size: 12px; }
+      th, td { padding: 8px 6px 8px 0; }
+    }
+
     /* LSA section */
     .lsa-row { display: flex; gap: 32px; }
 
@@ -129,6 +159,26 @@
     .run-btn { background: #1e2333; border: 1px solid #2d3748; color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.15s; }
     .run-btn:hover { background: #2d3748; color: #e2e8f0; }
     .run-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+    /* Ad Creator */
+    .ad-creator-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .ad-form-group { display: flex; flex-direction: column; gap: 6px; }
+    .ad-form-group.full { grid-column: 1 / -1; }
+    .ad-form-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; }
+    .ad-form-label span { color: #475569; font-size: 10px; text-transform: none; letter-spacing: 0; }
+    .ad-form-input, .ad-form-textarea { background: #12161f; border: 1px solid #2d3748; border-radius: 6px; color: #e2e8f0; font-size: 13px; padding: 10px 12px; font-family: inherit; transition: border 0.15s; }
+    .ad-form-input:focus, .ad-form-textarea:focus { outline: none; border-color: #4f9cf9; }
+    .ad-form-textarea { resize: vertical; min-height: 80px; }
+    .ad-char-count { font-size: 10px; text-align: right; margin-top: 2px; }
+    .ad-char-ok { color: #22c55e; }
+    .ad-char-warn { color: #f97316; }
+    .ad-submit-btn { background: #1a4fa0; border: 1px solid #2563eb; color: #fff; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+    .ad-submit-btn:hover { background: #2563eb; }
+    .ad-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ad-result { margin-top: 14px; padding: 12px 16px; border-radius: 6px; font-size: 13px; display: none; }
+    .ad-result.success { background: #0d2d1a; border: 1px solid #166534; color: #4ade80; display: block; }
+    .ad-result.error { background: #2d0d0d; border: 1px solid #991b1b; color: #f87171; display: block; }
+    @media (max-width: 768px) { .ad-creator-form { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -163,7 +213,7 @@
       <div class="card roas">
         <div class="label">ROAS</div>
         <div class="value" id="roas">—</div>
-        <div class="sub">Revenue ÷ Ad Spend</div>
+        <div class="sub">30d FB Revenue ÷ Meta Spend</div>
       </div>
     </div>
 
@@ -186,6 +236,7 @@
         <div class="stat-row" style="margin-top:16px;" id="ghl-stats">
           <div class="loading-msg">Loading...</div>
         </div>
+        <div id="ghl-funnel"></div>
       </div>
 
       <div class="section full">
@@ -196,7 +247,7 @@
       </div>
 
       <div class="section full">
-        <h2>Active Ads · Last 7 Days</h2>
+        <h2>All Ads · Last 30 Days</h2>
         <table id="active-ads-table" style="display:none">
           <thead><tr><th>Ad Name</th><th>Campaign</th><th>Ad Set</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Clicks</th><th>CTR</th></tr></thead>
           <tbody id="active-ads-body"></tbody>
@@ -267,6 +318,38 @@
         </div>
       </div>
     </div>
+    <!-- Ad Creator -->
+    <div style="margin-bottom:28px;">
+      <div class="intel-header" style="margin-bottom:16px;">
+        <h2>Create Meta Ad</h2>
+      </div>
+      <div class="section full">
+        <div class="ad-creator-form">
+          <div class="ad-form-group full">
+            <label class="ad-form-label">Photo <span>(before/after, job photo — JPG or PNG)</span></label>
+            <input type="file" id="ad-image" accept="image/jpeg,image/png,image/webp" class="ad-form-input" />
+          </div>
+          <div class="ad-form-group full">
+            <label class="ad-form-label">Primary Text <span>(main ad copy — 125 chars ideal)</span></label>
+            <textarea id="ad-primary-text" class="ad-form-textarea" maxlength="500" placeholder="Houston homeowners — see the difference a professional window cleaning makes. Before and after results guaranteed." oninput="updateCharCount('ad-primary-text','count-primary',125)"></textarea>
+            <div class="ad-char-count" id="count-primary">0 / 125</div>
+          </div>
+          <div class="ad-form-group">
+            <label class="ad-form-label">Headline <span>(40 chars max)</span></label>
+            <input type="text" id="ad-headline" class="ad-form-input" maxlength="40" placeholder="Spotless Windows, Guaranteed" oninput="updateCharCount('ad-headline','count-headline',40)" />
+            <div class="ad-char-count" id="count-headline">0 / 40</div>
+          </div>
+          <div class="ad-form-group">
+            <label class="ad-form-label">Ad Name <span>(for your records — optional)</span></label>
+            <input type="text" id="ad-name" class="ad-form-input" maxlength="100" placeholder="e.g. Before/After — April 2026" />
+          </div>
+          <div class="ad-form-group full" style="align-items:flex-start;">
+            <button class="ad-submit-btn" id="ad-submit-btn" onclick="createAd()">Create Paused Ad in Meta</button>
+            <div class="ad-result" id="ad-result"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <div class="modal-overlay" id="detail-modal">
@@ -297,14 +380,15 @@
       const lsaLeads = parseInt(data.lsa?.leads || 0);
       const totalLeads = metaLeads + lsaLeads;
 
-      const completedRevenue = parseFloat(data.ghl?.completedRevenue || 0);
       const completedCount = parseInt(data.ghl?.completedCount || 0);
-      const roas = totalSpend > 0 ? (completedRevenue / totalSpend).toFixed(1) : '—';
+      const revenue30d = parseFloat(data.ghl?.revenue30d || 0);
+      const fbRev = parseFloat(data.ghl?.fbRevenue || 0);
+      const roas = metaSpend > 0 && fbRev > 0 ? (fbRev / metaSpend).toFixed(1) : '—';
 
       document.getElementById('total-spend').textContent = fmt$(totalSpend);
       document.getElementById('total-leads').textContent = fmtN(totalLeads);
       document.getElementById('jobs-done').textContent = fmtN(completedCount);
-      document.getElementById('jobs-revenue').textContent = fmt$(completedRevenue) + ' revenue';
+      document.getElementById('jobs-revenue').textContent = fmt$(revenue30d) + ' · 30d revenue';
       document.getElementById('roas').textContent = roas !== '—' ? roas + 'x' : '—';
     }
 
@@ -313,10 +397,12 @@
       if (meta?.error) { el.innerHTML = `<div class="error-msg">Meta Ads API error: ${meta.error}${meta.detail?.error?.message ? ' — ' + meta.detail.error.message : ''}<br><small style="color:#94a3b8;">Hit Refresh Now after fixing, or visit /api/debug for details</small></div>`; return; }
 
       const d = meta?.last30;
+      const cpl = parseFloat(d?.cpl || 0);
+      const cplClass = cpl === 0 ? '' : cpl <= 45 ? 'cpl-good' : cpl <= 65 ? 'cpl-warn' : 'cpl-bad';
       el.innerHTML = `
         <div class="stat"><div class="s-label">Spend</div><div class="s-value">${fmt$(d?.spend)}</div></div>
         <div class="stat"><div class="s-label">Leads</div><div class="s-value">${fmtN(d?.leads)}</div></div>
-        <div class="stat"><div class="s-label">CPL</div><div class="s-value">${d?.cpl ? fmt$(d.cpl) : '—'}</div></div>
+        <div class="stat"><div class="s-label">CPL <span style="color:#475569;font-size:10px;font-weight:400;">target $45</span></div><div class="s-value ${cplClass}">${d?.cpl ? fmt$(d.cpl) : '—'}</div></div>
         <div class="stat"><div class="s-label">Clicks</div><div class="s-value">${fmtN(d?.clicks)}</div></div>
       `;
 
@@ -337,7 +423,8 @@
       }
     }
 
-    function renderGHL(ghl, metaLeads) {
+    function renderGHL(ghl, metaLast30) {
+      const metaLeads = parseInt(metaLast30?.leads || 0);
       const stagesEl = document.getElementById('pipeline-stages');
       const statsEl = document.getElementById('ghl-stats');
 
@@ -353,14 +440,39 @@
         </div>
       `).join('');
 
-      const convRate = metaLeads > 0
-        ? ((ghl.completedCount / metaLeads) * 100).toFixed(1) + '%'
-        : '—';
+      // Funnel calculations
+      const totalLeads = ghl.totalLeads || 0;
+      const quotedTotal = (stages['Quote Scheduled'] || 0) + (stages['Quote Delivered'] || 0) +
+        (stages['Won'] || 0) + (stages['Paid'] || 0) + (stages['Job Complete'] || 0);
+      const closedTotal = ghl.completedCount || 0;
+      const quoteRate = totalLeads > 0 ? Math.round(quotedTotal / totalLeads * 100) : 0;
+      const closeRate = quotedTotal > 0 ? Math.round(closedTotal / quotedTotal * 100) : 0;
 
       statsEl.innerHTML = `
-        <div class="stat"><div class="s-label">Paid Revenue</div><div class="s-value" style="color:#22c55e">${fmt$(ghl.completedRevenue)}</div></div>
-        <div class="stat"><div class="s-label">Quotes Scheduled</div><div class="s-value">${fmtN(ghl.quotedCount)}</div></div>
-        <div class="stat"><div class="s-label">Conv. Rate</div><div class="s-value">${convRate}</div></div>
+        <div class="stat"><div class="s-label">Revenue · This Week</div><div class="s-value" style="color:#22c55e">${fmt$(ghl.revenueWeek || 0)}</div></div>
+        <div class="stat"><div class="s-label">Revenue · 30 Days</div><div class="s-value" style="color:#22c55e">${fmt$(ghl.revenue30d || 0)}</div></div>
+        <div class="stat"><div class="s-label">FB Revenue <span style="color:#475569;font-size:10px;">(30d)</span></div><div class="s-value" style="color:#4f9cf9">${fmt$(ghl.fbRevenue || 0)}</div></div>
+        <div class="stat"><div class="s-label">YTD Revenue</div><div class="s-value" style="color:#22c55e">${fmt$(ghl.revenueYTD || 0)}</div></div>
+      `;
+
+      document.getElementById('ghl-funnel').innerHTML = `
+        <div class="funnel">
+          <div class="funnel-row">
+            <div class="funnel-label">Leads</div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:100%;background:#4f9cf9;"></div></div>
+            <div class="funnel-right"><span class="funnel-count">${fmtN(totalLeads)}</span></div>
+          </div>
+          <div class="funnel-row">
+            <div class="funnel-label">Quoted</div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${quoteRate}%;background:#a78bfa;"></div></div>
+            <div class="funnel-right"><span class="funnel-count">${fmtN(quotedTotal)}</span><span class="funnel-pct">${quoteRate}%</span></div>
+          </div>
+          <div class="funnel-row">
+            <div class="funnel-label">Closed</div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${totalLeads > 0 ? Math.round(closedTotal/totalLeads*100) : 0}%;background:#22c55e;"></div></div>
+            <div class="funnel-right"><span class="funnel-count">${fmtN(closedTotal)}</span><span class="funnel-pct">${closeRate}% of quoted</span></div>
+          </div>
+        </div>
       `;
     }
 
@@ -417,7 +529,7 @@
 
         renderSummary(data);
         renderMeta(data.meta);
-        renderGHL(data.ghl, parseInt(data.meta?.last30?.leads || 0));
+        renderGHL(data.ghl, data.meta?.last30);
         renderLSA(data.lsa);
         renderActiveAds(data.meta?.activeAds, data.meta?.error);
       } catch (err) {
@@ -688,6 +800,63 @@
     // Load intelligence on start, refresh every 30 min
     loadIntelligence();
     setInterval(loadIntelligence, 30 * 60 * 1000);
+
+    // ─── Ad Creator ──────────────────────────────────────────────────────────────
+
+    function updateCharCount(inputId, countId, limit) {
+      const len = document.getElementById(inputId).value.length;
+      const el = document.getElementById(countId);
+      el.textContent = `${len} / ${limit}`;
+      el.className = 'ad-char-count ' + (len <= limit ? 'ad-char-ok' : 'ad-char-warn');
+    }
+
+    async function createAd() {
+      const image = document.getElementById('ad-image').files[0];
+      const primaryText = document.getElementById('ad-primary-text').value.trim();
+      const headline = document.getElementById('ad-headline').value.trim();
+      const adName = document.getElementById('ad-name').value.trim();
+      const btn = document.getElementById('ad-submit-btn');
+      const resultEl = document.getElementById('ad-result');
+
+      if (!image) { showAdResult('error', 'Please select a photo.'); return; }
+      if (!primaryText) { showAdResult('error', 'Primary text is required.'); return; }
+      if (!headline) { showAdResult('error', 'Headline is required.'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating ad...';
+      resultEl.className = 'ad-result';
+
+      const form = new FormData();
+      form.append('image', image);
+      form.append('primaryText', primaryText);
+      form.append('headline', headline);
+      if (adName) form.append('adName', adName);
+
+      try {
+        const res = await fetch('/api/create-ad', { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+          showAdResult('success', `Ad created! ID: ${data.adId} — Find it in Meta Ads Manager under your ad set (status: PAUSED). Activate it when ready.`);
+          document.getElementById('ad-image').value = '';
+          document.getElementById('ad-primary-text').value = '';
+          document.getElementById('ad-headline').value = '';
+          document.getElementById('ad-name').value = '';
+        } else {
+          showAdResult('error', data.error || 'Something went wrong.');
+        }
+      } catch (err) {
+        showAdResult('error', 'Network error — is the server running?');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Create Paused Ad in Meta';
+    }
+
+    function showAdResult(type, msg) {
+      const el = document.getElementById('ad-result');
+      el.className = `ad-result ${type}`;
+      el.textContent = msg;
+    }
   </script>
 </body>
 </html>
