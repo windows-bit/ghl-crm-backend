@@ -72,15 +72,14 @@ async function getInsights(datePreset = 'last_30d') {
   };
 }
 
-// Fetch active ads with last-7d performance
+// Fetch all ads with last-30d performance
 async function getActiveAds() {
   const res = await axios.get(`${BASE_URL}/${AD_ACCOUNT_ID}/insights`, {
     params: {
       access_token: ACCESS_TOKEN,
       fields: 'ad_id,ad_name,adset_name,campaign_name,spend,impressions,clicks,actions',
-      date_preset: 'last_7d',
+      date_preset: 'last_30d',
       level: 'ad',
-      filtering: JSON.stringify([{ field: 'ad.effective_status', operator: 'IN', value: ['ACTIVE'] }]),
     },
   });
 

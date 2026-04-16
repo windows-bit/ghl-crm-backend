@@ -323,30 +323,90 @@
       <div class="intel-header" style="margin-bottom:16px;">
         <h2>Create Meta Ad</h2>
       </div>
+      <!-- One-Click Auto Ad -->
+      <div class="section full" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;">Auto-Create Ads from Facebook &amp; Instagram</div>
+            <div style="font-size:12px;color:#64748b;">Grabs your 5 most recent photos → 3 ad styles (results, urgency, trust) → all created as PAUSED. One click, no input needed.</div>
+          </div>
+          <button class="ad-submit-btn" id="auto-ad-btn" onclick="autoCreateAd()" style="white-space:nowrap;flex-shrink:0;">Create Ads from Socials</button>
+        </div>
+        <div class="ad-result" id="auto-ad-result"></div>
+      </div>
+      <!-- Tabbed Ad Creator -->
       <div class="section full">
-        <div class="ad-creator-form">
-          <div class="ad-form-group full">
-            <label class="ad-form-label">Photo <span>(before/after, job photo — JPG or PNG)</span></label>
-            <input type="file" id="ad-image" accept="image/jpeg,image/png,image/webp" class="ad-form-input" />
+        <!-- Tab buttons -->
+        <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid #1e293b;">
+          <button id="tab-bulk-btn" onclick="switchAdTab('bulk')" style="padding:8px 20px;background:#3b82f6;color:#fff;border:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px;font-weight:600;">Bulk Upload</button>
+          <button id="tab-ba-btn" onclick="switchAdTab('ba')" style="padding:8px 20px;background:#1e293b;color:#94a3b8;border:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px;font-weight:600;margin-left:4px;">Before / After</button>
+        </div>
+
+        <!-- Tab A: Bulk Upload -->
+        <div id="tab-bulk">
+          <div class="ad-creator-form">
+            <div class="ad-form-group">
+              <label class="ad-form-label">Service</label>
+              <select id="bulk-service" class="ad-form-input">
+                <option value="commercial">Commercial</option>
+                <option value="roof">Roof Washing</option>
+                <option value="house">House (Residential)</option>
+                <option value="pressure">Pressure Washing</option>
+                <option value="window">Window Cleaning</option>
+              </select>
+            </div>
+            <div class="ad-form-group">
+              <label class="ad-form-label">Photos <span>(up to 20 — JPG, PNG, WebP)</span></label>
+              <input type="file" id="bulk-images" accept="image/jpeg,image/png,image/webp" multiple class="ad-form-input" onchange="updateBulkCount()" />
+              <div id="bulk-count" style="font-size:12px;color:#64748b;margin-top:4px;min-height:18px;"></div>
+            </div>
+            <div class="ad-form-group full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#94a3b8;">
+                <input type="checkbox" id="bulk-banner" onchange="toggleBannerText('bulk')" style="width:16px;height:16px;" />
+                Add "FREE QUOTE" banner to images
+              </label>
+              <input type="text" id="bulk-banner-text" class="ad-form-input" placeholder="FREE QUOTE · spotoffreflections.com" style="display:none;margin-top:8px;" />
+            </div>
+            <div class="ad-form-group full" style="align-items:flex-start;">
+              <button class="ad-submit-btn" id="bulk-submit-btn" onclick="bulkCreateAds()">Create All Ads (Paused)</button>
+            </div>
           </div>
-          <div class="ad-form-group full">
-            <label class="ad-form-label">Primary Text <span>(main ad copy — 125 chars ideal)</span></label>
-            <textarea id="ad-primary-text" class="ad-form-textarea" maxlength="500" placeholder="Houston homeowners — see the difference a professional window cleaning makes. Before and after results guaranteed." oninput="updateCharCount('ad-primary-text','count-primary',125)"></textarea>
-            <div class="ad-char-count" id="count-primary">0 / 125</div>
+          <div id="bulk-progress" style="margin-top:16px;"></div>
+        </div>
+
+        <!-- Tab B: Before / After -->
+        <div id="tab-ba" style="display:none;">
+          <div class="ad-creator-form">
+            <div class="ad-form-group">
+              <label class="ad-form-label">Service</label>
+              <select id="ba-service" class="ad-form-input">
+                <option value="commercial">Commercial</option>
+                <option value="roof">Roof Washing</option>
+                <option value="house">House (Residential)</option>
+                <option value="pressure">Pressure Washing</option>
+                <option value="window">Window Cleaning</option>
+              </select>
+            </div>
+            <div class="ad-form-group">
+              <label class="ad-form-label">Before Photo</label>
+              <input type="file" id="ba-before" accept="image/jpeg,image/png,image/webp" class="ad-form-input" />
+            </div>
+            <div class="ad-form-group">
+              <label class="ad-form-label">After Photo</label>
+              <input type="file" id="ba-after" accept="image/jpeg,image/png,image/webp" class="ad-form-input" />
+            </div>
+            <div class="ad-form-group full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#94a3b8;">
+                <input type="checkbox" id="ba-banner" onchange="toggleBannerText('ba')" style="width:16px;height:16px;" />
+                Add "FREE QUOTE" banner to image
+              </label>
+              <input type="text" id="ba-banner-text" class="ad-form-input" placeholder="FREE QUOTE · spotoffreflections.com" style="display:none;margin-top:8px;" />
+            </div>
+            <div class="ad-form-group full" style="align-items:flex-start;">
+              <button class="ad-submit-btn" id="ba-submit-btn" onclick="createBeforeAfterAd()">Create Before/After Ad</button>
+            </div>
           </div>
-          <div class="ad-form-group">
-            <label class="ad-form-label">Headline <span>(40 chars max)</span></label>
-            <input type="text" id="ad-headline" class="ad-form-input" maxlength="40" placeholder="Spotless Windows, Guaranteed" oninput="updateCharCount('ad-headline','count-headline',40)" />
-            <div class="ad-char-count" id="count-headline">0 / 40</div>
-          </div>
-          <div class="ad-form-group">
-            <label class="ad-form-label">Ad Name <span>(for your records — optional)</span></label>
-            <input type="text" id="ad-name" class="ad-form-input" maxlength="100" placeholder="e.g. Before/After — April 2026" />
-          </div>
-          <div class="ad-form-group full" style="align-items:flex-start;">
-            <button class="ad-submit-btn" id="ad-submit-btn" onclick="createAd()">Create Paused Ad in Meta</button>
-            <div class="ad-result" id="ad-result"></div>
-          </div>
+          <div class="ad-result" id="ba-result" style="margin-top:16px;"></div>
         </div>
       </div>
     </div>
@@ -803,60 +863,144 @@
 
     // ─── Ad Creator ──────────────────────────────────────────────────────────────
 
-    function updateCharCount(inputId, countId, limit) {
-      const len = document.getElementById(inputId).value.length;
-      const el = document.getElementById(countId);
-      el.textContent = `${len} / ${limit}`;
-      el.className = 'ad-char-count ' + (len <= limit ? 'ad-char-ok' : 'ad-char-warn');
+    async function autoCreateAd() {
+      const btn = document.getElementById('auto-ad-btn');
+      const resultEl = document.getElementById('auto-ad-result');
+      btn.disabled = true;
+      btn.textContent = 'Creating ads...';
+      resultEl.className = 'ad-result';
+      try {
+        const res = await fetch('/api/auto-create-ad', { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.ads) {
+          resultEl.className = 'ad-result success';
+          const lines = data.ads.map((ad, i) =>
+            `Ad ${i + 1} (${ad.source}) — ID: ${ad.adId}\n  "${ad.headline}"\n  ${ad.primaryText}`
+          ).join('\n\n');
+          resultEl.innerHTML = `<strong>${data.ads.length} ads created as PAUSED in Meta Ads Manager:</strong>\n\n${lines}`;
+          resultEl.style.whiteSpace = 'pre-wrap';
+        } else {
+          resultEl.className = 'ad-result error';
+          resultEl.textContent = data.error || 'Something went wrong.';
+        }
+      } catch (err) {
+        resultEl.className = 'ad-result error';
+        resultEl.textContent = 'Network error — is the server running?';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Create Ads from Socials';
     }
 
-    async function createAd() {
-      const image = document.getElementById('ad-image').files[0];
-      const primaryText = document.getElementById('ad-primary-text').value.trim();
-      const headline = document.getElementById('ad-headline').value.trim();
-      const adName = document.getElementById('ad-name').value.trim();
-      const btn = document.getElementById('ad-submit-btn');
-      const resultEl = document.getElementById('ad-result');
+    function switchAdTab(tab) {
+      document.getElementById('tab-bulk').style.display = tab === 'bulk' ? '' : 'none';
+      document.getElementById('tab-ba').style.display = tab === 'ba' ? '' : 'none';
+      document.getElementById('tab-bulk-btn').style.background = tab === 'bulk' ? '#3b82f6' : '#1e293b';
+      document.getElementById('tab-bulk-btn').style.color = tab === 'bulk' ? '#fff' : '#94a3b8';
+      document.getElementById('tab-ba-btn').style.background = tab === 'ba' ? '#3b82f6' : '#1e293b';
+      document.getElementById('tab-ba-btn').style.color = tab === 'ba' ? '#fff' : '#94a3b8';
+    }
 
-      if (!image) { showAdResult('error', 'Please select a photo.'); return; }
-      if (!primaryText) { showAdResult('error', 'Primary text is required.'); return; }
-      if (!headline) { showAdResult('error', 'Headline is required.'); return; }
+    function updateBulkCount() {
+      const files = document.getElementById('bulk-images').files;
+      const el = document.getElementById('bulk-count');
+      el.textContent = files.length > 0 ? `${files.length} photo${files.length > 1 ? 's' : ''} selected` : '';
+      el.style.color = '#4ade80';
+    }
+
+    function toggleBannerText(prefix) {
+      const checked = document.getElementById(`${prefix}-banner`).checked;
+      document.getElementById(`${prefix}-banner-text`).style.display = checked ? '' : 'none';
+    }
+
+    async function bulkCreateAds() {
+      const files = document.getElementById('bulk-images').files;
+      const service = document.getElementById('bulk-service').value;
+      const addBanner = document.getElementById('bulk-banner').checked;
+      const bannerText = document.getElementById('bulk-banner-text').value.trim();
+      const btn = document.getElementById('bulk-submit-btn');
+      const progress = document.getElementById('bulk-progress');
+
+      if (!files.length) { progress.innerHTML = '<div style="color:#f87171;">Please select at least one photo.</div>'; return; }
+
+      btn.disabled = true;
+      btn.textContent = `Creating ${files.length} ad${files.length > 1 ? 's' : ''}...`;
+      progress.innerHTML = '<div style="color:#64748b;font-size:13px;">Uploading and creating ads — this may take a minute...</div>';
+
+      const form = new FormData();
+      for (const f of files) form.append('images', f);
+      form.append('service', service);
+      form.append('addBanner', addBanner ? 'true' : 'false');
+      if (bannerText) form.append('bannerText', bannerText);
+
+      try {
+        const res = await fetch('/api/bulk-create-from-upload', { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.ads) {
+          const rows = data.ads.map(ad => {
+            if (ad.error) return `<div style="padding:8px 0;border-bottom:1px solid #1e293b;color:#f87171;">✗ ${ad.fileName} — ${ad.error}</div>`;
+            return `<div style="padding:8px 0;border-bottom:1px solid #1e293b;">
+              <span style="color:#4ade80;font-weight:600;">✓</span>
+              <span style="color:#fff;font-size:13px;"> ${ad.fileName}</span>
+              <div style="color:#94a3b8;font-size:12px;margin-top:3px;">"${ad.headline}" · ID: ${ad.adId}</div>
+              <div style="color:#64748b;font-size:12px;">${ad.primaryText}</div>
+            </div>`;
+          }).join('');
+          const successCount = data.ads.filter(a => !a.error).length;
+          progress.innerHTML = `<div style="color:#4ade80;font-weight:600;margin-bottom:8px;">${successCount} of ${data.ads.length} ads created (PAUSED in Meta Ads Manager)</div>${rows}`;
+        } else {
+          progress.innerHTML = `<div style="color:#f87171;">${data.error || 'Something went wrong.'}</div>`;
+        }
+      } catch (err) {
+        progress.innerHTML = '<div style="color:#f87171;">Network error — is the server running?</div>';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Create All Ads (Paused)';
+    }
+
+    async function createBeforeAfterAd() {
+      const before = document.getElementById('ba-before').files[0];
+      const after = document.getElementById('ba-after').files[0];
+      const service = document.getElementById('ba-service').value;
+      const addBanner = document.getElementById('ba-banner').checked;
+      const bannerText = document.getElementById('ba-banner-text').value.trim();
+      const btn = document.getElementById('ba-submit-btn');
+      const resultEl = document.getElementById('ba-result');
+
+      if (!before) { resultEl.className = 'ad-result error'; resultEl.textContent = 'Please select the Before photo.'; return; }
+      if (!after) { resultEl.className = 'ad-result error'; resultEl.textContent = 'Please select the After photo.'; return; }
 
       btn.disabled = true;
       btn.textContent = 'Creating ad...';
       resultEl.className = 'ad-result';
 
       const form = new FormData();
-      form.append('image', image);
-      form.append('primaryText', primaryText);
-      form.append('headline', headline);
-      if (adName) form.append('adName', adName);
+      form.append('before', before);
+      form.append('after', after);
+      form.append('service', service);
+      form.append('addBanner', addBanner ? 'true' : 'false');
+      if (bannerText) form.append('bannerText', bannerText);
 
       try {
-        const res = await fetch('/api/create-ad', { method: 'POST', body: form });
+        const res = await fetch('/api/before-after-ad', { method: 'POST', body: form });
         const data = await res.json();
         if (data.success) {
-          showAdResult('success', `Ad created! ID: ${data.adId} — Find it in Meta Ads Manager under your ad set (status: PAUSED). Activate it when ready.`);
-          document.getElementById('ad-image').value = '';
-          document.getElementById('ad-primary-text').value = '';
-          document.getElementById('ad-headline').value = '';
-          document.getElementById('ad-name').value = '';
+          resultEl.className = 'ad-result success';
+          resultEl.innerHTML = `<strong>Before/After ad created! (PAUSED)</strong>\nAd ID: ${data.adId}\n\n"${data.headline}"\n${data.primaryText}`;
+          resultEl.style.whiteSpace = 'pre-wrap';
         } else {
-          showAdResult('error', data.error || 'Something went wrong.');
+          resultEl.className = 'ad-result error';
+          resultEl.textContent = data.error || 'Something went wrong.';
         }
       } catch (err) {
-        showAdResult('error', 'Network error — is the server running?');
+        resultEl.className = 'ad-result error';
+        resultEl.textContent = 'Network error — is the server running?';
       }
 
       btn.disabled = false;
-      btn.textContent = 'Create Paused Ad in Meta';
+      btn.textContent = 'Create Before/After Ad';
     }
 
-    function showAdResult(type, msg) {
-      const el = document.getElementById('ad-result');
-      el.className = `ad-result ${type}`;
-      el.textContent = msg;
-    }
   </script>
 </body>
 </html>

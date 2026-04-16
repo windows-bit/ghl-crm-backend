@@ -29,6 +29,13 @@ async function uploadImage(imageBuffer, fileName) {
 
 // Step 2: Create ad creative — returns creative_id
 async function createCreative(imageHash, headline, primaryText) {
+  const websiteUrl = 'https://spotoffreflections.com';
+
+  const callToAction = {
+    type: 'GET_QUOTE',
+    value: { lead_gen_form_id: LEAD_GEN_FORM_ID },
+  };
+
   const res = await axios.post(
     `${BASE_URL}/${AD_ACCOUNT_ID}/adcreatives`,
     {
@@ -38,16 +45,10 @@ async function createCreative(imageHash, headline, primaryText) {
         page_id: PAGE_ID,
         link_data: {
           image_hash: imageHash,
-          link: 'http://fb.me/',
+          link: 'https://fb.me/0',
           message: primaryText,
           name: headline,
-          call_to_action: {
-            type: 'GET_QUOTE',
-            value: {
-              lead_gen_form_id: LEAD_GEN_FORM_ID,
-              link: 'http://fb.me/',
-            },
-          },
+          call_to_action: callToAction,
         },
       },
     }
