@@ -135,7 +135,7 @@ async function sendAdResultsEmail(ad, metrics, ideas) {
 
   await transporter.sendMail({
     from: 'windows@spotoffreflections.com',
-    to: 'lucasabraham124@gmail.com',
+    to: 'windows@spotoffreflections.com',
     subject: `3-Day Results: ${ad.name}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#222;">
